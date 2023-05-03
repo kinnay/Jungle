@@ -8,7 +8,7 @@ import struct
 class BARSLISTFile:
 	def __init__(self):
 		self.version = 1
-		self.endianness = ">"
+		self.endianness = "<"
 
 		self.name = ""
 		self.resources = []

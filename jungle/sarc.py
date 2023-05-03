@@ -29,7 +29,7 @@ def calculate_alignment(offset):
 class SARCFile:
 	def __init__(self):
 		self.version = 0x100
-		self.endianness = ">"
+		self.endianness = "<"
 		self.hash_multiplier = 101
 		self.sign_extend = True
 		self.alignment = 4
