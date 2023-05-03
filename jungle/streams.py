@@ -162,6 +162,9 @@ class StreamOut:
 	def chars(self, data): self.repeat(data, self.char)
 	def wchars(self, data): self.repeat(data, self.wchar)
 	
+	def string(self, data):
+		self.write(data.encode() + b"\0")
+	
 	def repeat(self, list, func):
 		for value in list:
 			func(value)

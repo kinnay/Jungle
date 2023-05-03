@@ -28,3 +28,4 @@ class Yaz0File:
 		stream.pad(4)
 
 		stream.write(self.data)
+		return stream.get()

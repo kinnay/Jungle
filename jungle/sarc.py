@@ -115,7 +115,7 @@ class SARCFile:
 		if self.version != 0x100:
 			raise SaveError("unsupported version number")
 
-		num_files = len(self.files) + len(self.unnamed_files) > 0x3FFF
+		num_files = len(self.files) + len(self.unnamed_files)
 		if num_files > 0x3FFF:
 			raise SaveError("too many files")
 
@@ -134,7 +134,7 @@ class SARCFile:
 
 		hashes = {}
 		for name, data in self.files.items():
-			hash = calculate_hash(name, self.multiplier, self.sign_extend)
+			hash = calculate_hash(name, self.hash_multiplier, self.sign_extend)
 
 			index = hashes.get(hash, 1)
 			if index > 255:
