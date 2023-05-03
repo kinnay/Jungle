@@ -1,4 +1,5 @@
 
+from jungle.nw import bfwav
 from jungle import barslist, sarc, yaz0
 import os
 
@@ -34,5 +35,6 @@ def test_format(name, cls):
 
 
 test_format("barslist", barslist.BARSLISTFile)
+test_format("bfwav", bfwav.BFWAVFile)
 test_format("sarc", sarc.SARCFile)
 test_format("yaz0", yaz0.Yaz0File)
