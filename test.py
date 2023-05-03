@@ -1,0 +1,38 @@
+
+from jungle import barslist, sarc, yaz0
+import os
+
+
+def test_format(name, cls):
+	print("%s:" %name)
+	if not os.path.isdir("files/%s" %name):
+		return
+	
+	for filename in os.listdir("files/%s" %name):
+		print("    %s: " %filename, end="")
+		
+		with open("files/%s/%s" %(name, filename), "rb") as f:
+			data = f.read()
+		
+		file = cls()
+		try:
+			file.parse(data)
+		except Exception as e:
+			print(e)
+			return
+		
+		try:
+			saved = file.save()
+		except Exception as e:
+			print(e)
+			return
+		
+		if saved != data:
+			print("mismatch")
+		else:
+			print("ok")
+
+
+test_format("barslist", barslist.BARSLISTFile)
+test_format("sarc", sarc.SARCFile)
+test_format("yaz0", yaz0.Yaz0File)
