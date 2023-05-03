@@ -2,6 +2,10 @@
 from jungle.nw import bfwav
 from jungle import barslist, sarc, yaz0
 import os
+import sys
+
+
+crash = "--error" in sys.argv
 
 
 def test_format(name, cls):
@@ -19,12 +23,16 @@ def test_format(name, cls):
 		try:
 			file.parse(data)
 		except Exception as e:
+			if crash:
+				raise
 			print(e)
 			return
 		
 		try:
 			saved = file.save()
 		except Exception as e:
+			if crash:
+				raise
 			print(e)
 			return
 		
