@@ -98,8 +98,10 @@ class StreamIn:
 
 	# Parsing functions at specific position
 	def string_at(self, pos):
-		with self.jump(pos):
-			return self.string()
+		with self.jump(pos): return self.string()
+	
+	def u32_at(self, pos):
+		with self.jump(pos): return self.u32()
 
 
 class StreamOut:

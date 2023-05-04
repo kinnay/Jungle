@@ -1,6 +1,7 @@
 
+from jungle.aal import bamta, bars, barslist
 from jungle.nw import bfwav
-from jungle import barslist, sarc, yaz0
+from jungle import sarc, yaz0
 import os
 import sys
 
@@ -38,10 +39,15 @@ def test_format(name, cls):
 		
 		if saved != data:
 			print("mismatch")
+			os.makedirs("files/mismatch", exist_ok=True)
+			with open("files/mismatch/%s" %filename, "wb") as f:
+				f.write(saved)
 		else:
 			print("ok")
 
 
+test_format("bamta", bamta.BAMTAFile)
+test_format("bars", bars.BARSFile)
 test_format("barslist", barslist.BARSLISTFile)
 test_format("bfwav", bfwav.BFWAVFile)
 test_format("sarc", sarc.SARCFile)
