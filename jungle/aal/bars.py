@@ -8,7 +8,7 @@ import struct
 class Asset:
 	def __init__(self):
 		self.metadata = b""
-		self.data = b""
+		self.data = None
 
 
 class BARSFile:
@@ -44,14 +44,17 @@ class BARSFile:
 		self.assets = {}
 		for i in range(num_assets):
 			metadata_offset = stream.u32()
-			data_offset = stream.u32()
+			data_offset = stream.s32()
 
 			metadata_size = stream.u32_at(metadata_offset + 8)
-			data_size = stream.u32_at(data_offset + 12)
+			metadata = data[metadata_offset:metadata_offset+metadata_size]
 
 			asset = Asset()
-			asset.metadata = data[metadata_offset:metadata_offset+metadata_size]
-			asset.data = data[data_offset:data_offset+data_size]
+			asset.metadata = metadata
+			if data_offset != -1:
+				data_size = stream.u32_at(data_offset + 12)
+				asset.data = data[data_offset:data_offset+data_size]
+			
 			self.assets[hashes[i]] = asset
 	
 	def save(self):
@@ -66,9 +69,12 @@ class BARSFile:
 		
 		data_offsets = {}
 		for hash, asset in sorted(self.assets.items()):
-			offset = (offset + 63) & ~63
-			data_offsets[hash] = offset
-			offset += len(asset.data)
+			if asset.data:
+				offset = (offset + 63) & ~63
+				data_offsets[hash] = offset
+				offset += len(asset.data)
+			else:
+				data_offsets[hash] = -1
 
 		stream = streams.StreamOut(self.endianness)
 		stream.ascii("BARS")
@@ -82,13 +88,14 @@ class BARSFile:
 		
 		for hash, asset in sorted(self.assets.items()):
 			stream.u32(metadata_offsets[hash])
-			stream.u32(data_offsets[hash])
+			stream.s32(data_offsets[hash])
 		
 		for hash, asset in sorted(self.assets.items()):
 			stream.write(asset.metadata)
 		
 		for hash, asset in sorted(self.assets.items()):
-			stream.align(64)
-			stream.write(asset.data)
+			if asset.data:
+				stream.align(64)
+				stream.write(asset.data)
 		
 		return stream.get()
