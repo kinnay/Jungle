@@ -14,7 +14,7 @@ def test_format(name, cls):
 	if not os.path.isdir("files/%s" %name):
 		return
 	
-	for filename in os.listdir("files/%s" %name):
+	for filename in sorted(os.listdir("files/%s" %name)):
 		print("    %s: " %filename, end="")
 		
 		with open("files/%s/%s" %(name, filename), "rb") as f:
@@ -27,7 +27,7 @@ def test_format(name, cls):
 			if crash:
 				raise
 			print(e)
-			return
+			continue
 		
 		try:
 			saved = file.save()
@@ -35,7 +35,7 @@ def test_format(name, cls):
 			if crash:
 				raise
 			print(e)
-			return
+			continue
 		
 		if saved != data:
 			print("mismatch")
