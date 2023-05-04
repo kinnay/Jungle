@@ -38,6 +38,68 @@ class ExtEntry:
 		self.value = 0
 
 
+class StringTableIn:
+	"""A string table that works around a bug from Nintendo's tooling.
+
+	Nintendo's files have wrong string table offsets if a string
+	contains non-ascii characters. This string table works around
+	that behavior.
+	"""
+
+	def __init__(self):
+		self.strings = {}
+	
+	def get(self, offset):
+		if offset not in self.strings:
+			raise ParseError("string table offset is invalid")
+		return self.strings[offset]
+
+	def parse(self, stream):
+		if stream.ascii(4) != "STRG":
+			raise ParseError("STRG section has invalid identifier")
+		size = stream.u32()
+
+		offset = 0
+		end = stream.tell() + size
+		while stream.tell() < end:
+			string = stream.string()
+			self.strings[offset] = string
+			offset += len(string) + 1
+
+
+class StringTableOut:
+	"""A string table that mimics a bug from Nintendo's tooling.
+
+	Nintendo's files have wrong string table offsets if a string
+	contains non-ascii characters. This string table emulates
+	that behavior.
+	"""
+
+	def __init__(self):
+		self.strings = {}
+		self.offset = 0
+		self.bytes = 0
+
+	def add(self, string):
+		if string in self.strings:
+			return self.strings[string]
+
+		offset = self.offset
+		self.strings[string] = offset
+		self.offset += len(string) + 1
+		self.bytes += len(string.encode()) + 1
+		return offset
+
+	def size(self):
+		return 8 + self.bytes
+	
+	def save(self, stream):
+		stream.ascii("STRG")
+		stream.u32(self.bytes)
+		for string in self.strings:
+			stream.string(string)
+
+
 class BAMTAFile:
 	def __init__(self):
 		self.version = 0x100
@@ -85,12 +147,16 @@ class BAMTAFile:
 			ext_offset = stream.u32()
 		string_offset = stream.u32()
 
+		stream.seek(string_offset)
+		string_table = StringTableIn()
+		string_table.parse(stream)
+
 		stream.seek(data_offset)
 		if stream.ascii(4) != "DATA":
 			raise ParseError("DATA section has invalid identifier")
 		stream.skip(4)
 
-		self.name = stream.string_at(string_offset + 8 + stream.u32())
+		self.name = string_table.get(stream.u32())
 		self.unk = stream.u32()
 		self.type = stream.u8()
 		self.num_channels = stream.u8()
@@ -122,7 +188,7 @@ class BAMTAFile:
 		for i in range(stream.u32()):
 			info = MarkerInfo()
 			info.id = stream.u32()
-			info.name = stream.string_at(string_offset + 8 + stream.u32())
+			info.name = string_table.get(stream.u32())
 			info.start = stream.u32()
 			info.length = stream.u32()
 			self.markers.append(info)
@@ -136,7 +202,7 @@ class BAMTAFile:
 
 			for i in range(stream.u32()):
 				entry = ExtEntry()
-				entry.name = stream.string_at(string_offset + 8 + stream.u32())
+				entry.name = string_table.get(stream.u32())
 				entry.value = stream.float()
 				self.ext.append(entry)
 	
@@ -144,13 +210,12 @@ class BAMTAFile:
 		if self.version not in [0x100, 0x300, 0x400]:
 			raise SaveError("unsupported version number")
 
-		string_stream = streams.StreamOut(self.endianness)
+		string_table = StringTableOut()
 
 		data_stream = streams.StreamOut(self.endianness)
 		data_stream.ascii("DATA")
 		data_stream.u32(0x64 if self.version == 0x400 else 0x60)
-		data_stream.u32(string_stream.tell())
-		string_stream.string(self.name)
+		data_stream.u32(string_table.add(self.name))
 		data_stream.u32(self.unk)
 		data_stream.u8(self.type)
 		data_stream.u8(self.num_channels)
@@ -177,8 +242,7 @@ class BAMTAFile:
 		mark_stream.u32(len(self.markers))
 		for marker in self.markers:
 			mark_stream.u32(marker.id)
-			mark_stream.u32(string_stream.tell())
-			string_stream.string(marker.name)
+			mark_stream.u32(string_table.add(marker.name))
 			mark_stream.u32(marker.start)
 			mark_stream.u32(marker.length)
 		
@@ -188,8 +252,7 @@ class BAMTAFile:
 			ext_stream.u32(0x4 + len(self.ext) * 8)
 			ext_stream.u32(len(self.ext))
 			for entry in self.ext:
-				ext_stream.u32(string_stream.tell())
-				string_stream.string(entry.name)
+				ext_stream.u32(string_table.add(entry.name))
 				ext_stream.float(entry.value)
 
 		data_offset = 0x18 if self.version == 0x100 else 0x1C
@@ -200,7 +263,7 @@ class BAMTAFile:
 		else:
 			string_offset = mark_offset + mark_stream.size()
 		
-		file_size = string_offset + string_stream.size() + 8
+		file_size = string_offset + string_table.size()
 		file_size = (file_size + 3) & ~3
 
 		stream = streams.StreamOut(self.endianness)
@@ -218,9 +281,7 @@ class BAMTAFile:
 		if self.version in [0x300, 0x400]:
 			stream.write(ext_stream.get())
 		
-		stream.ascii("STRG")
-		stream.u32(string_stream.size())
-		stream.write(string_stream.get())
+		string_table.save(stream)
 		stream.align(4)
-		
+
 		return stream.get()
