@@ -10,6 +10,10 @@ class AssetType:
 	STREAM = 1
 
 
+class Flags:
+	LOOPED = 4
+
+
 class StreamTrack:
 	def __init__(self):
 		self.channels = 0
@@ -106,14 +110,14 @@ class BAMTAFile:
 		self.endianness = "<"
 
 		self.name = ""
-		self.unk = 0
+		self.num_output_samples = 0
 		self.type = AssetType.WAVE
 		self.num_channels = 1
 		self.flags = 0
 		self.unk2 = 0
 		self.sample_rate = 32000
 		self.loop_start = 0
-		self.loop_end = 0
+		self.num_samples = 0
 		self.decibel = 0.0
 		self.stream_tracks = []
 		self.amplitude_peak = 1.0
@@ -157,7 +161,7 @@ class BAMTAFile:
 		stream.skip(4)
 
 		self.name = string_table.get(stream.u32())
-		self.unk = stream.u32()
+		self.num_output_samples = stream.u32()
 		self.type = stream.u8()
 		self.num_channels = stream.u8()
 		num_tracks = stream.u8()
@@ -165,7 +169,7 @@ class BAMTAFile:
 		self.unk2 = stream.float()
 		self.sample_rate = stream.u32()
 		self.loop_start = stream.u32()
-		self.loop_end = stream.u32()
+		self.num_samples = stream.u32()
 		self.decibel = stream.float()
 
 		self.stream_tracks = []
@@ -216,7 +220,7 @@ class BAMTAFile:
 		data_stream.ascii("DATA")
 		data_stream.u32(0x64 if self.version == 0x400 else 0x60)
 		data_stream.u32(string_table.add(self.name))
-		data_stream.u32(self.unk)
+		data_stream.u32(self.num_output_samples)
 		data_stream.u8(self.type)
 		data_stream.u8(self.num_channels)
 		data_stream.u8(len(self.stream_tracks))
@@ -224,7 +228,7 @@ class BAMTAFile:
 		data_stream.float(self.unk2)
 		data_stream.u32(self.sample_rate)
 		data_stream.u32(self.loop_start)
-		data_stream.u32(self.loop_end)
+		data_stream.u32(self.num_samples)
 		data_stream.float(self.decibel)
 
 		for track in self.stream_tracks:

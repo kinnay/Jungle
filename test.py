@@ -9,8 +9,15 @@ import sys
 crash = "--error" in sys.argv
 
 
+def test_basic(cls):
+	file = cls()
+	file.save()
+
 def test_format(name, cls):
 	print("%s:" %name)
+
+	test_basic(cls)
+
 	if not os.path.isdir("files/%s" %name):
 		return
 	

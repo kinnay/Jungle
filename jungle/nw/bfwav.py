@@ -15,10 +15,9 @@ def calc_channel_size(format, samples):
 	if format == SampleFormat.PCM_16: return samples * 2
 
 	# ADPCM
-	size = samples // 14 * 8
-	if samples % 14:
-		size += (samples % 14 + 1) // 2 + 1
-	return size
+	size = (samples + 13) // 14
+	size += (samples + 1) // 2
+	return size + 1
 
 
 class ADPCMContext:
@@ -48,11 +47,13 @@ class ADPCMInfo:
 		self.coefs = stream.repeat(stream.s16, 16)
 		self.main_context.parse(stream)
 		self.loop_context.parse(stream)
+		stream.pad(2)
 	
 	def save(self, stream):
 		stream.repeat(self.coefs, stream.s16)
 		self.main_context.save(stream)
 		self.loop_context.save(stream)
+		stream.pad(2)
 
 
 class ChannelInfo:
@@ -88,6 +89,7 @@ class BFWAVFile:
 		self.is_looped = False
 		self.loop_start = 0
 		self.num_samples = 0
+		self.adjusted_loop_start = 0
 		self.channels = []
 	
 	def parse(self, data):
@@ -102,7 +104,7 @@ class BFWAVFile:
 		# Read header info
 		self.endianness = file.endianness
 		self.version = file.version
-		if self.version != 0x10100:
+		if self.version not in [0x10100, 0x10200]:
 			raise ParseError("unsupported version number")
 		
 		# Parse the DATA block
@@ -123,7 +125,10 @@ class BFWAVFile:
 		self.sample_rate = stream.u32()
 		self.loop_start = stream.u32()
 		self.num_samples = stream.u32()
-		stream.pad(4)
+		if self.version == 0x10200:
+			self.adjusted_loop_start = stream.u32()
+		else:
+			stream.pad(4)
 
 		base = stream.tell()
 		channel_refs = []
@@ -151,7 +156,7 @@ class BFWAVFile:
 			self.channels.append(channel)
 	
 	def save(self):
-		if self.version != 0x10100:
+		if self.version not in [0x10100, 0x10200]:
 			raise SaveError("unsupported version number")
 		
 		info_stream = streams.StreamOut(self.endianness)
@@ -163,39 +168,53 @@ class BFWAVFile:
 		info_stream.u32(self.sample_rate)
 		info_stream.u32(self.loop_start)
 		info_stream.u32(self.num_samples)
-		info_stream.pad(4)
+		if self.version == 0x10200:
+			info_stream.u32(self.adjusted_loop_start)
+		else:
+			info_stream.pad(4)
 		info_stream.u32(len(self.channels))
 
 		data_stream = streams.StreamOut(self.endianness)
 		data_stream.ascii("DATA")
 		data_stream.skip(4) # Block size
 
-		offset = 4 + 8 * len(self.channels)
+		channel_base = 4 + len(self.channels) * 8
+		adpcm_base = channel_base + len(self.channels) * 0x14
+
 		channel_stream = streams.StreamOut(self.endianness)
+		adpcm_stream = streams.StreamOut(self.endianness)
 		for channel in self.channels:
+			channel_offset = channel_base + channel_stream.tell()
+
 			ref = sound.SectionReference()
 			ref.type = 0x7100
-			ref.offset = offset + channel_stream.tell()
+			ref.offset = channel_offset
 			ref.save(info_stream)
 
-			data_stream.align(32)
+			if self.version == 0x10100:
+				data_stream.align(32)
+			else:
+				data_stream.align(64)
 
 			channel_info = ChannelInfo()
 			channel_info.data_ref = sound.SectionReference()
 			channel_info.data_ref.type = 0x1F00
 			channel_info.data_ref.offset = data_stream.tell() - 8
 			if channel.adpcm_info:
+				adpcm_offset = adpcm_base + adpcm_stream.tell()
+				channel.adpcm_info.save(adpcm_stream)
+
 				channel_info.adpcm_ref = sound.SectionReference()
 				channel_info.adpcm_ref.type = 0x300
-				channel_info.adpcm_ref.offset = 0x14
+				channel_info.adpcm_ref.offset = adpcm_offset - channel_offset
 			
 			channel_info.save(channel_stream)
-			if channel.adpcm_info:
-				channel.adpcm_info.save(channel_stream)
 			
 			data_stream.write(channel.data)
+		data_stream.align(8)
 
 		info_stream.write(channel_stream.get())
+		info_stream.write(adpcm_stream.get())
 		info_stream.align(32)
 
 		info_stream.seek(4); info_stream.u32(info_stream.size())
