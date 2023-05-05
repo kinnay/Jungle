@@ -113,6 +113,13 @@ class StreamOut:
 		
 	def push(self): self.stack.append(self.pos)
 	def pop(self): self.pos = self.stack.pop()
+	
+	@contextlib.contextmanager
+	def jump(self, pos):
+		self.push()
+		self.seek(pos)
+		yield
+		self.pop()
 		
 	def get(self): return bytes(self.data)
 	def size(self): return len(self.data)
@@ -125,6 +132,11 @@ class StreamOut:
 	def align(self, num): self.skip((num - self.pos % num) % num)
 	def available(self): return len(self.data) - self.pos
 	def eof(self): return self.pos >= len(self.data)
+
+	def reserve(self, num):
+		pos = self.tell()
+		self.skip(num)
+		return pos
 		
 	def write(self, data):
 		self.data[self.pos : self.pos + len(data)] = data
@@ -170,3 +182,6 @@ class StreamOut:
 	def repeat(self, list, func):
 		for value in list:
 			func(value)
+	
+	def u32_at(self, pos, value):
+		with self.jump(pos): self.u32(value)
