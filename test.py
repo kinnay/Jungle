@@ -1,5 +1,5 @@
 
-from jungle.aal import bamta, bars, barslist
+from jungle.aal import baatn, bamta, bars, barslist
 from jungle.nw import bfwav
 from jungle.sead import sarc, yaz0
 import os
@@ -53,6 +53,7 @@ def test_format(name, cls):
 			print("ok")
 
 
+test_format("baatn", baatn.BAATNFile)
 test_format("bamta", bamta.BAMTAFile)
 test_format("bars", bars.BARSFile)
 test_format("barslist", barslist.BARSLISTFile)
