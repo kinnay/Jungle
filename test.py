@@ -1,7 +1,7 @@
 
 from jungle.aal import bamta, bars, barslist
 from jungle.nw import bfwav
-from jungle import sarc, yaz0
+from jungle.sead import sarc, yaz0
 import os
 import sys
 
