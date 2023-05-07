@@ -13,5 +13,8 @@ setuptools.setup(
 	author_email = "ymarchand@me.com",
 	url = "https://github.com/kinnay/jungle",
 	license = "MIT",
-	packages = ["jungle"]
+	packages = ["jungle"],
+	package_data = {
+		"jungle": ["files/*"]
+	}
 )
