@@ -6,14 +6,15 @@ import struct
 
 
 class StreamIn:
-	def __init__(self, data, endian):
-		self.endian = endian
+	def __init__(self, data, endianness):
+		self.endianness = endianness
 		self.data = data
 		self.pos = 0
 		self.stack = []
 	
 	# General functions
-	def set_endian(self, endian): self.endian = endian
+	def set_endianness(self, endianness):
+		self.endianness = endianness
 	
 	def push(self): self.stack.append(self.pos)
 	def pop(self): self.pos = self.stack.pop()
@@ -61,22 +62,22 @@ class StreamIn:
 		return self.read(num).decode("ascii")
 		
 	def u8(self): return self.read(1)[0]
-	def u16(self): return struct.unpack(self.endian + "H", self.read(2))[0]
-	def u32(self): return struct.unpack(self.endian + "I", self.read(4))[0]
-	def u64(self): return struct.unpack(self.endian + "Q", self.read(8))[0]
+	def u16(self): return struct.unpack(self.endianness + "H", self.read(2))[0]
+	def u32(self): return struct.unpack(self.endianness + "I", self.read(4))[0]
+	def u64(self): return struct.unpack(self.endianness + "Q", self.read(8))[0]
 	
 	def s8(self): return struct.unpack("b", self.read(1))[0]
-	def s16(self): return struct.unpack(self.endian + "h", self.read(2))[0]
-	def s32(self): return struct.unpack(self.endian + "i", self.read(4))[0]
-	def s64(self): return struct.unpack(self.endian + "q", self.read(8))[0]
+	def s16(self): return struct.unpack(self.endianness + "h", self.read(2))[0]
+	def s32(self): return struct.unpack(self.endianness + "i", self.read(4))[0]
+	def s64(self): return struct.unpack(self.endianness + "q", self.read(8))[0]
 	
 	def u24(self):
-		if self.endian == ">":
+		if self.endianness == ">":
 			return (self.u16() << 8) | self.u8()
 		return self.u8() | (self.u16() << 8)
 	
-	def float(self): return struct.unpack(self.endian + "f", self.read(4))[0]
-	def double(self): return struct.unpack(self.endian + "d", self.read(8))[0]
+	def float(self): return struct.unpack(self.endianness + "f", self.read(4))[0]
+	def double(self): return struct.unpack(self.endianness + "d", self.read(8))[0]
 	
 	def bool(self): return bool(self.u8())
 	def char(self): return chr(self.u8())
@@ -105,8 +106,8 @@ class StreamIn:
 
 
 class StreamOut:
-	def __init__(self, endian):
-		self.endian = endian
+	def __init__(self, endianness):
+		self.endianness = endianness
 		self.data = bytearray()
 		self.pos = 0
 		self.stack = []
@@ -149,25 +150,25 @@ class StreamOut:
 		self.write(data.encode("ascii"))
 		
 	def u8(self, value): self.write(bytes([value]))
-	def u16(self, value): self.write(struct.pack(self.endian + "H", value))
-	def u32(self, value): self.write(struct.pack(self.endian + "I", value))
-	def u64(self, value): self.write(struct.pack(self.endian + "Q", value))
+	def u16(self, value): self.write(struct.pack(self.endianness + "H", value))
+	def u32(self, value): self.write(struct.pack(self.endianness + "I", value))
+	def u64(self, value): self.write(struct.pack(self.endianness + "Q", value))
 	
 	def s8(self, value): self.write(struct.pack("b", value))
-	def s16(self, value): self.write(struct.pack(self.endian + "h", value))
-	def s32(self, value): self.write(struct.pack(self.endian + "i", value))
-	def s64(self, value): self.write(struct.pack(self.endian + "q", value))
+	def s16(self, value): self.write(struct.pack(self.endianness + "h", value))
+	def s32(self, value): self.write(struct.pack(self.endianness + "i", value))
+	def s64(self, value): self.write(struct.pack(self.endianness + "q", value))
 	
 	def u24(self, value):
-		if self.endian == ">":
+		if self.endianness == ">":
 			self.u16(value >> 8)
 			self.u8(value & 0xFF)
 		else:
 			self.u8(value & 0xFF)
 			self.u16(value >> 8)
 			
-	def float(self, value): self.write(struct.pack(self.endian + "f", value))
-	def double(self, value): self.write(struct.pack(self.endian + "d", value))
+	def float(self, value): self.write(struct.pack(self.endianness + "f", value))
+	def double(self, value): self.write(struct.pack(self.endianness + "d", value))
 	
 	def bool(self, value): self.u8(1 if value else 0)
 	def char(self, value): self.u8(ord(value))

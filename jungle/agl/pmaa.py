@@ -8,6 +8,55 @@ import struct
 MAGIC_NUMBER = struct.unpack(">I", b"PMAA")[0]
 
 
+class StreamIn(streams.StreamIn):
+	"""Memory stream that detects whether strings contain uninitialized bytes.
+
+	In old games, strings with a fixed size contain uninitialized bytes
+	behind the null terminator. This stream class detects whether that
+	is the case.
+	"""
+
+	def __init__(self, data, endianness):
+		super().__init__(data, endianness)
+		self.string_padding = None
+	
+	def fixed_string(self, size):
+		data = self.read(size)
+		if b"\0" not in data or data[-1] != 0:
+			raise ParseError("expected null terminator behind string")
+		
+		string, padding = data.split(b"\0", 1)
+
+		# Detect whether the memory behind the string
+		# contains uninitialized bytes
+		if len(padding) > 1:
+			if padding[0] != self.string_padding and self.string_padding is not None:
+				raise ParseError("string has inconsistent padding")
+			self.string_padding = padding[0]
+		
+		return string.decode()
+
+
+class StreamOut(streams.StreamOut):
+	"""Memory stream that writes additional bytes behind a null terminated string.
+
+	In old games, strings with a fixed size contain uninitialized bytes
+	behind the null terminator. This stream class mimics that behavior.
+	"""
+
+	def __init__(self, endianness, string_padding):
+		super().__init__(endianness)
+		self.string_padding = string_padding or 0
+	
+	def fixed_string(self, value, size):
+		data = value.encode() + b"\0"
+		data = data.ljust(size - 1, bytes([self.string_padding]))
+		data = data.ljust(size, b"\0")
+		if len(data) != size:
+			raise SaveError("string is too large")
+		self.write(data)
+
+
 class ParameterType:
 	BOOL = 0
 	F32 = 1
@@ -39,7 +88,7 @@ class Parameter:
 		self.value = 0
 	
 	def parse(self, stream):
-		size = stream.u32()
+		end = stream.tell() + stream.u32()
 		self.type = stream.u32()
 		self.hash = stream.u32()
 
@@ -67,10 +116,8 @@ class Parameter:
 			b = stream.float()
 			a = stream.float()
 			self.value = r, g, b, a
-		elif self.type == ParameterType.STRING32:
-			self.value = stream.read(32).split(b"\0")[0].decode()
-		elif self.type == ParameterType.STRING64:
-			self.value = stream.read(64).split(b"\0")[0].decode()
+		elif self.type == ParameterType.STRING32: self.value = stream.fixed_string(32)
+		elif self.type == ParameterType.STRING64: self.value = stream.fixed_string(64)
 		elif self.type == ParameterType.CURVE1:
 			self.value = stream.repeat(stream.float, 32)
 		elif self.type == ParameterType.CURVE1:
@@ -81,6 +128,9 @@ class Parameter:
 			self.value = stream.repeat(stream.float, 128)
 		else:
 			raise ParseError("unsupported parameter type: %i" %self.type)
+
+		if stream.tell() != end:
+			raise ParseError("parameter has invalid size")
 
 	def save(self, stream):
 		base = stream.reserve(4)
@@ -102,16 +152,8 @@ class Parameter:
 		elif self.type == ParameterType.COLOR:
 			for i in range(4):
 				stream.float(self.value[i])
-		elif self.type == ParameterType.STRING32:
-			data = self.value.encode() + b"\0"
-			data = data.ljust(31, b"\xCD")
-			data = data.ljust(32, b"\x00")
-			stream.write(data)
-		elif self.type == ParameterType.STRING64:
-			data = self.value.encode() + b"\0"
-			data = data.ljust(63, b"\xCD")
-			data = data.ljust(64, b"\x00")
-			stream.write(data)
+		elif self.type == ParameterType.STRING32: stream.fixed_string(self.value, 32)
+		elif self.type == ParameterType.STRING64: stream.fixed_string(self.value, 64)
 		elif self.type == ParameterType.CURVE1: stream.repeat(self.value, stream.float)
 		elif self.type == ParameterType.CURVE2: stream.repeat(self.value, stream.float)
 		elif self.type == ParameterType.CURVE3: stream.repeat(self.value, stream.float)
@@ -196,8 +238,11 @@ class PMAAFile:
 		self.effect_version = 0
 		self.effect_type = "aglenv"
 
+		self.align = True
+		self.string_padding = None
+
 		self.root = ParameterList()
-	
+
 	def parse(self, data):
 		# Determine endianness
 		if len(data) < 12:
@@ -207,7 +252,7 @@ class PMAAFile:
 		self.endianness = "<" if bom else ">"
 
 		# Parse file
-		stream = streams.StreamIn(data, self.endianness)
+		stream = StreamIn(data, self.endianness)
 		if stream.u32() != MAGIC_NUMBER:
 			raise ParseError("magic number is invalid")
 		
@@ -219,24 +264,33 @@ class PMAAFile:
 		if stream.u32() != len(data): raise ParseError("file size is invalid")
 
 		self.effect_version = stream.u32()
-		stream.skip(4)
-		self.effect_type = stream.string()
+		self.effect_type = stream.fixed_string(stream.u32())
+
+		self.align = stream.tell() & 7 == 0
 
 		self.root = ParameterList()
 		self.root.parse(stream)
+
+		self.string_padding = stream.string_padding
 	
 	def save(self):
 		if self.version != 1:
 			raise SaveError("unsupported version number")
 		
-		stream = streams.StreamOut(self.endianness)
+		stream = StreamOut(self.endianness, self.string_padding)
 		stream.u32(MAGIC_NUMBER)
 		stream.u32(self.version)
 		stream.u32(1 if self.endianness == "<" else 0)
 		stream.skip(4)
 		stream.u32(self.effect_version)
-		stream.u32(len(self.effect_type) + 1)
-		stream.string(self.effect_type)
+
+		type_length = len(self.effect_type) + 1
+		if self.align:
+			type_length = (type_length + 7) & ~7
+		
+		stream.u32(type_length)
+		stream.fixed_string(self.effect_type, type_length)
+
 		self.root.save(stream)
 
 		stream.seek(12)
