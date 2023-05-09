@@ -242,7 +242,7 @@ class Parameter:
 class ParameterObject:
 	def __init__(self):
 		self.hash = 0
-		self.group_hash = 0
+		self.type_hash = 0
 		self.parameters = []
 	
 	def parse(self, stream):
@@ -250,7 +250,7 @@ class ParameterObject:
 		num_parameters = stream.u32()
 
 		self.hash = stream.u32()
-		self.group_hash = stream.u32()
+		self.type_hash = stream.u32()
 
 		self.parameters = []
 		for i in range(num_parameters):
@@ -262,7 +262,7 @@ class ParameterObject:
 		base = stream.reserve(4)
 		stream.u32(len(self.parameters))
 		stream.u32(self.hash)
-		stream.u32(self.group_hash)
+		stream.u32(self.type_hash)
 		for parameter in self.parameters:
 			parameter.save(stream)
 		stream.u32_at(base, stream.tell() - base)
