@@ -1,6 +1,7 @@
 
 from jungle.aal import baatn, bamta, bars, barslist
 from jungle.agl import pmaa
+from jungle.gfd import gfx2
 from jungle.nw import bfwav
 from jungle.sead import sarc, yaz0
 import os
@@ -59,6 +60,7 @@ test_format("bamta", bamta.BAMTAFile)
 test_format("bars", bars.BARSFile)
 test_format("barslist", barslist.BARSLISTFile)
 test_format("bfwav", bfwav.BFWAVFile)
+test_format("gtx", gfx2.Gfx2File)
 test_format("pmaa", pmaa.PMAAFile)
 test_format("sarc", sarc.SARCFile)
 test_format("yaz0", yaz0.Yaz0File)
