@@ -18,7 +18,7 @@ class BARSLISTFile:
 		if len(data) < 6:
 			raise ParseError("file is too small")
 		
-		bom = struct.unpack_from(">H", data, 4)
+		bom = struct.unpack_from(">H", data, 4)[0]
 		self.endianness = ">" if bom == 0xFEFF else "<"
 
 		# Parse file
