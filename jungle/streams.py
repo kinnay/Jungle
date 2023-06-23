@@ -1,5 +1,5 @@
 
-from jungle.error import ParseError
+from jungle.errors import ParseError
 
 import contextlib
 import struct

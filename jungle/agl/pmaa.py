@@ -1,6 +1,6 @@
 
 from typing import Any
-from jungle.error import ParseError, SaveError
+from jungle.errors import ParseError, SaveError
 from jungle import streams
 import struct
 
