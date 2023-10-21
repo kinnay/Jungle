@@ -140,7 +140,7 @@ class BAMTAFile:
 
 		self.version = stream.u16()
 		if self.version not in [0x100, 0x300, 0x400]:
-			raise ValueError("unsupported version number")
+			raise ParseError("unsupported version number")
 
 		if stream.u32() != len(data):
 			raise ParseError("file size is invalid")

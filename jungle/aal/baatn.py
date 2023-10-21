@@ -60,7 +60,7 @@ class BAATNFile:
 
 		self.version = stream.u16()
 		if self.version != 1:
-			raise ValueError("unsupported version number")
+			raise ParseError("unsupported version number")
 
 		string_offset = stream.u32()
 

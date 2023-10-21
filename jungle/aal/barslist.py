@@ -28,7 +28,7 @@ class BARSLISTFile:
 
 		self.version = stream.u16()
 		if self.version != 1:
-			raise ValueError("unsupported version number")
+			raise ParseError("unsupported version number")
 
 		name_offset = stream.u32()
 		resource_offsets = stream.repeat(stream.u32, stream.u32())

@@ -35,7 +35,7 @@ class BARSFile:
 
 		self.version = stream.u16()
 		if self.version != 0x101:
-			raise ValueError("unsupported version number")
+			raise ParseError("unsupported version number")
 
 		num_assets = stream.u32()
 
