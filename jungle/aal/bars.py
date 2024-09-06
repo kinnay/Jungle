@@ -15,8 +15,6 @@ class BARSFile:
 	def __init__(self):
 		self.version = 0x101
 		self.endianness = "<"
-
-		self.name = ""
 		self.assets = {}
 	
 	def parse(self, data):

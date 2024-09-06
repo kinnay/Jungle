@@ -104,7 +104,7 @@ class StringTableOut:
 			stream.string(string)
 
 
-class BAMTAFile:
+class BAMETAFile:
 	def __init__(self):
 		self.version = 0x100
 		self.endianness = "<"

@@ -59,7 +59,10 @@ class StreamIn:
 			raise ParseError("incorrect padding")
 			
 	def ascii(self, num):
-		return self.read(num).decode("ascii")
+		try:
+			return self.read(num).decode("ascii")
+		except UnicodeDecodeError:
+			raise ParseError("ascii decoding failed")
 		
 	def u8(self): return self.read(1)[0]
 	def u16(self): return struct.unpack(self.endianness + "H", self.read(2))[0]
@@ -92,17 +95,28 @@ class StreamIn:
 		while byte != 0:
 			data.append(byte)
 			byte = self.u8()
-		return bytes(data).decode()
+		
+		try:
+			return bytes(data).decode()
+		except UnicodeDecodeError:
+			raise ParseError("utf-8 decoding failed")
 	
 	def repeat(self, func, count):
 		return [func() for i in range(count)]
 
-	# Parsing functions at specific position
 	def string_at(self, pos):
 		with self.jump(pos): return self.string()
 	
 	def u32_at(self, pos):
 		with self.jump(pos): return self.u32()
+	def u64_at(self, pos):
+		with self.jump(pos): return self.u64()
+	
+	def s64_at(self, pos):
+		with self.jump(pos): return self.s64()
+	
+	def double_at(self, pos):
+		with self.jump(pos): return self.double()
 
 
 class StreamOut:
@@ -186,3 +200,11 @@ class StreamOut:
 	
 	def u32_at(self, pos, value):
 		with self.jump(pos): self.u32(value)
+	def u64_at(self, pos, value):
+		with self.jump(pos): self.u64(value)
+	
+	def s64_at(self, pos, value):
+		with self.jump(pos): self.s64(value)
+	
+	def double_at(self, pos, value):
+		with self.jump(pos): self.double(value)
