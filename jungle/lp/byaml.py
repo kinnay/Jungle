@@ -140,6 +140,9 @@ class BYAMLParser:
 		return self.nodes[pos]
 	
 	def parse_string_table(self, stream, base):
+		if not base:
+			return []
+		
 		stream.seek(base)
 		if stream.u8() != NodeType.STRING_TABLE:
 			raise ParseError("expected a string table")
@@ -177,15 +180,19 @@ class BYAMLSaver:
 		else:
 			stream.ascii("YB")
 		stream.u16(self.version)
-		stream.u32(0x10)
+		stream.u32(0x10 if self.dictionary_key_table else 0)
 		stream.skip(8)
 
-		self.save_string_table(stream, self.dictionary_key_table)
-		stream.align(4)
-		stream.u32_at(8, stream.tell())
-
-		self.save_string_table(stream, self.string_table)
-		stream.align(4)
+		if self.dictionary_key_table:
+			self.save_string_table(stream, self.dictionary_key_table)
+			stream.align(4)
+		
+		stream.u32_at(8, stream.tell() if self.string_table else 0)
+		
+		if self.string_table:
+			self.save_string_table(stream, self.string_table)
+			stream.align(4)
+		
 		stream.u32_at(12, stream.tell())
 
 		if self.root.type == NodeType.ARRAY:
