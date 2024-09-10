@@ -155,7 +155,28 @@ class BYAMLParser:
 			stream.seek(base + offset)
 			strings.append(stream.string())
 		return strings
-		
+
+
+class StringTableBuilder:
+	def __init__(self):
+		self.visited = set()
+
+		self.dictionary_key_table = set()
+		self.string_table = set()
+	
+	def process(self, node):
+		if node.type == NodeType.ARRAY and node not in self.visited:
+			self.visited.add(node)
+			for element in node.value:
+				self.process(element)
+		elif node.type == NodeType.DICT and node not in self.visited:
+			self.visited.add(node)
+			for key, value in node.value.items():
+				self.dictionary_key_table.add(key)
+				self.process(value)
+		elif node.type == NodeType.STRING:
+			self.string_table.add(node.value)
+
 
 class BYAMLSaver:
 	def __init__(self):
@@ -163,8 +184,8 @@ class BYAMLSaver:
 		self.version = 5
 		self.root = BYAMLNode(NodeType.DICT, {})
 
-		self.dictionary_key_table = []
-		self.string_table = []
+		self.dictionary_key_table = {}
+		self.string_table = {}
 
 		self.nodes = {}
 	
@@ -231,7 +252,7 @@ class BYAMLSaver:
 		stream.pop()
 
 		for key, child in node.value.items():
-			stream.u24(self.dictionary_key_table.index(key))
+			stream.u24(self.dictionary_key_table[key])
 			stream.u8(child.type)
 			self.save_node(stream, child)
 	
@@ -240,7 +261,7 @@ class BYAMLSaver:
 
 		addresses = [offset]
 		strings = b""
-		for string in table:
+		for string in table.keys():
 			strings += string.encode() + b"\0"
 			addresses.append(offset + len(strings))
 
@@ -251,7 +272,7 @@ class BYAMLSaver:
 	
 	def save_node(self, stream, node):
 		if node.type == NodeType.STRING:
-			stream.u32(self.string_table.index(node.value))
+			stream.u32(self.string_table[node.value])
 		elif node.type == NodeType.BINARY:
 			stream.u32(stream.size())
 			with stream.jump(stream.size()):
@@ -298,28 +319,11 @@ class BYAMLSaver:
 	def generate_tables(self):
 		"""Walks through all nodes to generate the string and dictionary key tables"""
 
-		visited = []
-		todo = [self.root]
-		while todo:
-			node = todo.pop()
-			if node in visited:
-				continue
-			visited.append(node)
+		builder = StringTableBuilder()
+		builder.process(self.root)
 
-			if node.type == NodeType.ARRAY:
-				for element in node.value:
-					todo.append(element)
-			elif node.type == NodeType.DICT:
-				for key, value in node.value.items():
-					if key not in self.dictionary_key_table:
-						self.dictionary_key_table.append(key)
-					todo.append(value)
-			elif node.type == NodeType.STRING:
-				if node.type not in self.string_table:
-					self.string_table.append(node.value)
-		
-		self.dictionary_key_table.sort()
-		self.string_table.sort()
+		self.dictionary_key_table = {v: i for i, v in enumerate(sorted(builder.dictionary_key_table))}
+		self.string_table = {v: i for i, v in enumerate(sorted(builder.string_table))}
 
 
 class BYAMLFile:
