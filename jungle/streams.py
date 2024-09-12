@@ -104,6 +104,8 @@ class StreamIn:
 	def repeat(self, func, count):
 		return [func() for i in range(count)]
 
+	def peek_u32(self): return struct.unpack(self.endianness + "I", self.peek(4))[0]
+
 	def string_at(self, pos):
 		with self.jump(pos): return self.string()
 	

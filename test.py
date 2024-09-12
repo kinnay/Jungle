@@ -1,8 +1,8 @@
 
 from jungle.aal import baatn, bameta, bars, barslist
 from jungle.agl import pmaa
+from jungle.common import byaml
 from jungle.gfd import gfx2
-from jungle.lp import byaml
 from jungle.nw import bfwav
 from jungle.sead import sarc, yaz0
 import os

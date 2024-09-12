@@ -4,19 +4,22 @@ from jungle import streams
 
 
 class NodeType:
+	HASHMAP = 0x20
+
 	STRING = 0xA0
 	BINARY = 0xA1
 
 	ARRAY = 0xC0
 	DICT = 0xC1
 	STRING_TABLE = 0xC2
+	BINARY_TABLE = 0xC3
 
 	BOOL = 0xD0
-	S32 = 0xD1
+	INT = 0xD1
 	FLOAT = 0xD2
-	U32 = 0xD3
-	S64 = 0xD4
-	U64 = 0xD5
+	UINT = 0xD3
+	INT64 = 0xD4
+	UINT64 = 0xD5
 	DOUBLE = 0xD6
 
 	NULL = 0xFF
@@ -68,6 +71,7 @@ class BYAMLParser:
 		type = stream.peek(1)[0]
 		if type == NodeType.ARRAY: self.root = self.parse_array(stream)
 		elif type == NodeType.DICT: self.root = self.parse_dictionary(stream)
+		elif type == NodeType.HASHMAP: self.root = self.parse_hashmap(stream)
 		else:
 			raise ParseError("root node must be an array or dictionary")
 	
@@ -93,12 +97,12 @@ class BYAMLParser:
 				return stream.read(stream.u32())
 		
 		elif type == NodeType.BOOL: return bool(stream.u32())
-		elif type == NodeType.S32: return stream.s32()
+		elif type == NodeType.INT: return stream.s32()
 		elif type == NodeType.FLOAT: return stream.float()
-		elif type == NodeType.U32: return stream.u32()
+		elif type == NodeType.UINT: return stream.u32()
 
-		elif type == NodeType.S64: return stream.s64_at(stream.u32())
-		elif type == NodeType.U64: return stream.u64_at(stream.u32())
+		elif type == NodeType.INT64: return stream.s64_at(stream.u32())
+		elif type == NodeType.UINT64: return stream.u64_at(stream.u32())
 		elif type == NodeType.DOUBLE: return stream.double_at(stream.u32())
 
 		elif type == NodeType.NULL:
@@ -123,20 +127,47 @@ class BYAMLParser:
 		return self.nodes[pos]
 	
 	def parse_dictionary(self, stream):
+		"""
+		Parses a dictionary node. While the keys are always sorted alphabetically,
+		the child nodes may be stored in a different order in the file. We take
+		special care to preserve this order. We also make sure that we do not enter
+		an infinite loop when the file contains a cycle.
+		"""
+
 		if stream.u8() != NodeType.DICT:
 			raise ParseError("expected a dictionary node")
 		
 		pos = stream.tell()
 		if pos not in self.nodes:
-			dictionary = {}
+			elements = []
 			count = stream.u24()
 			for i in range(count):
 				key_index = stream.u24()
 				if key_index >= len(self.dictionary_keys):
 					raise ParseError("dictionary key index out of range")
 				key = self.dictionary_keys[key_index]
-				dictionary[key] = self.parse_node(stream, stream.u8())
+				type = stream.u8()
+				value = stream.peek_u32() # Read offset to preserve order
+				elements.append((key, value, self.parse_node(stream, type)))
+			dictionary = {key: node for key, _, node in sorted(elements, key=lambda element: element[1])}
 			self.nodes[pos] = BYAMLNode(NodeType.DICT, dictionary)
+		return self.nodes[pos]
+
+	def parse_hashmap(self, stream):
+		if stream.u8() != NodeType.HASHMAP:
+			raise ParseError("expected a hashmap node")
+
+		pos = stream.tell()
+		if pos not in self.nodes:
+			count = stream.u24()
+			with stream.jump(stream.tell() + count * 8):
+				types = stream.repeat(stream.u8, count)
+			map = {}
+			for i in range(count):
+				hash = stream.u32()
+				map[hash] = self.parse_node(stream, types[i])
+			self.nodes[pos] = BYAMLNode(NodeType.HASHMAP, map)
+			self.nodes[pos].address = pos - 1
 		return self.nodes[pos]
 	
 	def parse_string_table(self, stream, base):
@@ -157,35 +188,21 @@ class BYAMLParser:
 		return strings
 
 
-class StringTableBuilder:
-	def __init__(self):
-		self.visited = set()
-
-		self.dictionary_key_table = set()
-		self.string_table = set()
-	
-	def process(self, node):
-		if node.type == NodeType.ARRAY and node not in self.visited:
-			self.visited.add(node)
-			for element in node.value:
-				self.process(element)
-		elif node.type == NodeType.DICT and node not in self.visited:
-			self.visited.add(node)
-			for key, value in node.value.items():
-				self.dictionary_key_table.add(key)
-				self.process(value)
-		elif node.type == NodeType.STRING:
-			self.string_table.add(node.value)
-
-
 class BYAMLSaver:
 	def __init__(self):
 		self.endianness = "<"
 		self.version = 5
 		self.root = BYAMLNode(NodeType.DICT, {})
 
+		self.visited = set()
+		self.dictionary_keys = set()
+		self.strings = set()
+
 		self.dictionary_key_table = {}
 		self.string_table = {}
+
+		self.data_size = 0
+		self.data_offset = 0
 
 		self.nodes = {}
 	
@@ -193,7 +210,10 @@ class BYAMLSaver:
 		if not 2 <= self.version <= 7:
 			raise SaveError("unsupported version number")
 		
-		self.generate_tables()
+		self.preprocess(self.root)
+
+		self.dictionary_key_table = {v: i for i, v in enumerate(sorted(self.dictionary_keys))}
+		self.string_table = {v: i for i, v in enumerate(sorted(self.strings))}
 
 		stream = streams.StreamOut(self.endianness)
 		if self.endianness == ">":
@@ -213,13 +233,15 @@ class BYAMLSaver:
 		if self.string_table:
 			self.save_string_table(stream, self.string_table)
 			stream.align(4)
-		
+
+		self.data_offset = stream.tell()
+		stream.skip(self.data_size)
+
 		stream.u32_at(12, stream.tell())
 
-		if self.root.type == NodeType.ARRAY:
-			self.save_array(stream, self.root)
-		elif self.root.type == NodeType.DICT:
-			self.save_dictionary(stream, self.root)
+		if self.root.type == NodeType.ARRAY: self.save_array(stream, self.root)
+		elif self.root.type == NodeType.DICT: self.save_dictionary(stream, self.root)
+		elif self.root.type == NodeType.HASHMAP: self.save_hashmap(stream, self.root)
 		else:
 			raise SaveError("root node must be an array or dictionary")
 
@@ -247,13 +269,31 @@ class BYAMLSaver:
 		stream.u8(NodeType.DICT)
 		stream.u24(len(node.value))
 
+		base = stream.tell()
+		stream.skip(len(node.value) * 8)
+
+		keys = sorted(node.value)
+		for key, child in node.value.items():
+			stream.seek(base + keys.index(key) * 8)
+			stream.u24(self.dictionary_key_table[key])
+			stream.u8(child.type)
+			self.save_node(stream, child)
+	
+	def save_hashmap(self, stream, node):
+		self.nodes[node] = stream.tell()
+
+		stream.u8(NodeType.HASHMAP)
+		stream.u24(len(node.value))
+
 		stream.push()
 		stream.skip(len(node.value) * 8)
+		for child in node.value.values():
+			stream.u8(child.type)
+		stream.align(4)
 		stream.pop()
 
 		for key, child in node.value.items():
-			stream.u24(self.dictionary_key_table[key])
-			stream.u8(child.type)
+			stream.u32(key)
 			self.save_node(stream, child)
 	
 	def save_string_table(self, stream, table):
@@ -269,16 +309,16 @@ class BYAMLSaver:
 		stream.u24(len(table))
 		stream.repeat(addresses, stream.u32)
 		stream.write(strings)
-	
+
 	def save_node(self, stream, node):
 		if node.type == NodeType.STRING:
 			stream.u32(self.string_table[node.value])
 		elif node.type == NodeType.BINARY:
-			stream.u32(stream.size())
-			with stream.jump(stream.size()):
+			stream.u32(self.data_offset)
+			with stream.jump(self.data_offset):
 				stream.u32(len(node.value))
 				stream.write(node.value)
-				stream.align(4)
+			self.data_offset += 4 + len(node.value)
 		
 		elif node.type == NodeType.ARRAY:
 			if node in self.nodes:
@@ -296,19 +336,22 @@ class BYAMLSaver:
 					self.save_dictionary(stream, node)
 		
 		elif node.type == NodeType.BOOL: stream.u32(1 if node.value else 0)
-		elif node.type == NodeType.S32: stream.s32(node.value)
+		elif node.type == NodeType.INT: stream.s32(node.value)
 		elif node.type == NodeType.FLOAT: stream.float(node.value)
-		elif node.type == NodeType.U32: stream.u32(node.value)
+		elif node.type == NodeType.UINT: stream.u32(node.value)
 
-		elif node.type == NodeType.S64:
-			stream.u32(stream.size())
-			stream.s64_at(stream.size(), node.value)
-		elif node.type == NodeType.U64:
-			stream.u32(stream.size())
-			stream.u64_at(stream.size(), node.value)
+		elif node.type == NodeType.INT64:
+			stream.u32(self.data_offset)
+			stream.s64_at(self.data_offset, node.value)
+			self.data_offset += 8
+		elif node.type == NodeType.UINT64:
+			stream.u32(self.data_offset)
+			stream.u64_at(self.data_offset, node.value)
+			self.data_offset += 8
 		elif node.type == NodeType.DOUBLE:
-			stream.u32(stream.size())
-			stream.double_at(stream.size(), node.value)
+			stream.u32(self.data_offset)
+			stream.double_at(self.data_offset, node.value)
+			self.data_offset += 8
 		
 		elif node.type == NodeType.NULL:
 			stream.u32(0)
@@ -316,14 +359,32 @@ class BYAMLSaver:
 		else:
 			raise SaveError("unsupported node type: 0x%X" %node.type)
 
-	def generate_tables(self):
-		"""Walks through all nodes to generate the string and dictionary key tables"""
+	def preprocess(self, node):
+		"""
+		Walks through all nodes to generate the string and dictionary key tables,
+		and calculate the size of the additional binary data.
+		"""
 
-		builder = StringTableBuilder()
-		builder.process(self.root)
-
-		self.dictionary_key_table = {v: i for i, v in enumerate(sorted(builder.dictionary_key_table))}
-		self.string_table = {v: i for i, v in enumerate(sorted(builder.string_table))}
+		if node.type == NodeType.ARRAY and node not in self.visited:
+			self.visited.add(node)
+			for element in node.value:
+				self.preprocess(element)
+		elif node.type == NodeType.DICT and node not in self.visited:
+			self.visited.add(node)
+			for key, value in node.value.items():
+				self.dictionary_keys.add(key)
+				self.preprocess(value)
+		elif node.type == NodeType.HASHMAP and node not in self.visited:
+			self.visited.add(node)
+			for element in node.value.values():
+				self.preprocess(element)
+		elif node.type == NodeType.STRING:
+			self.strings.add(node.value)
+		
+		elif node.type == NodeType.BINARY:
+			self.data_size += 4 + len(node.value)
+		elif node.type in [NodeType.INT64, NodeType.UINT64, NodeType.DOUBLE]:
+			self.data_size += 8
 
 
 class BYAMLFile:
