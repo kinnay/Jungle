@@ -9,6 +9,11 @@ import os
 import sys
 
 
+RED = chr(0x1F534)
+GREEN = chr(0x1F7E2)
+YELLOW = chr(0x1F7E1)
+
+
 crash = "--error" in sys.argv
 
 
@@ -25,35 +30,27 @@ def test_format(name, cls):
 		return
 	
 	for filename in sorted(os.listdir("files/%s" %name)):
-		print("    %s: " %filename, end="")
-		
 		with open("files/%s/%s" %(name, filename), "rb") as f:
 			data = f.read()
 		
 		file = cls()
 		try:
 			file.parse(data)
-		except Exception as e:
-			if crash:
-				raise
-			print(e)
-			continue
-		
-		try:
 			saved = file.save()
 		except Exception as e:
 			if crash:
 				raise
-			print(e)
+			print("    " + RED + " " + filename + ": " + str(e))
 			continue
 		
 		if saved != data:
-			print("mismatch")
+			print("    " + YELLOW + " " + filename + ": mismatch")
 			os.makedirs("files/mismatch", exist_ok=True)
 			with open("files/mismatch/%s" %filename, "wb") as f:
 				f.write(saved)
 		else:
-			print("ok")
+			print("    " + GREEN + " " + filename)
+	print()
 
 
 test_format("baatn", baatn.BAATNFile)
