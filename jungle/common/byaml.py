@@ -33,12 +33,14 @@ class BYAMLNode:
 
 class BYAMLParser:
 	def __init__(self):
-		self.endianness = "<"
-		self.version = 5
+		self.endianness = ">"
+		self.version = 1
+		self.has_binary_table = False
 		self.root = BYAMLNode(NodeType.DICT, {})
 
 		self.dictionary_keys = []
 		self.string_table = []
+		self.binary_table = []
 
 		self.nodes = {}
 	
@@ -56,16 +58,25 @@ class BYAMLParser:
 		stream.skip(2)
 
 		self.version = stream.u16()
+
+		if not 1 <= self.version <= 7:
+			raise ParseError("unsupported version number")
 		
 		dictionary_table_offs = stream.u32()
 		string_table_offs = stream.u32()
-		root_node_offs = stream.u32()
 
-		if not 2 <= self.version <= 7:
-			raise ParseError("unsupported version number")
+		# The binary table only appears in Mario Kart 8
+		binary_table_offs = stream.u32()
+		if binary_table_offs == 0 or stream.u8_at(binary_table_offs) == NodeType.BINARY_TABLE:
+			self.has_binary_table = True
+			root_node_offs = stream.u32()
+		else:
+			root_node_offs = binary_table_offs
 		
 		self.dictionary_keys = self.parse_string_table(stream, dictionary_table_offs)
 		self.string_table = self.parse_string_table(stream, string_table_offs)
+		if self.has_binary_table:
+			self.binary_table = self.parse_binary_table(stream, binary_table_offs)
 
 		stream.seek(root_node_offs)
 		type = stream.peek(1)[0]
@@ -93,8 +104,14 @@ class BYAMLParser:
 				return self.string_table[index]
 			raise ParseError("string index out of range")
 		elif type == NodeType.BINARY:
-			with stream.jump(stream.u32()):
-				return stream.read(stream.u32())
+			if self.has_binary_table:
+				index = stream.u32()
+				if index < len(self.binary_table):
+					return self.binary_table[index]
+				raise ParseError("binary index out of range")
+			else:
+				with stream.jump(stream.u32()):
+					return stream.read(stream.u32())
 		
 		elif type == NodeType.BOOL: return bool(stream.u32())
 		elif type == NodeType.INT: return stream.s32()
@@ -186,20 +203,40 @@ class BYAMLParser:
 			stream.seek(base + offset)
 			strings.append(stream.string())
 		return strings
+	
+	def parse_binary_table(self, stream, base):
+		if not base:
+			return []
+		
+		stream.seek(base)
+		if stream.u8() != NodeType.BINARY_TABLE:
+			raise ParseError("expected a binary table")
+		
+		count = stream.u24()
+		offsets = stream.repeat(stream.u32, count + 1)
+
+		data = []
+		stream.seek(base + offsets[0])
+		for i in range(len(offsets) - 1):
+			data.append(stream.read(offsets[i + 1] - offsets[i]))
+		return data
 
 
 class BYAMLSaver:
 	def __init__(self):
-		self.endianness = "<"
-		self.version = 5
+		self.endianness = ">"
+		self.version = 1
+		self.has_binary_table = False
 		self.root = BYAMLNode(NodeType.DICT, {})
 
 		self.visited = set()
 		self.dictionary_keys = set()
 		self.strings = set()
+		self.binaries = set()
 
 		self.dictionary_key_table = {}
 		self.string_table = {}
+		self.binary_table = {}
 
 		self.data_size = 0
 		self.data_offset = 0
@@ -207,13 +244,14 @@ class BYAMLSaver:
 		self.nodes = {}
 	
 	def save(self):
-		if not 2 <= self.version <= 7:
+		if not 1 <= self.version <= 7:
 			raise SaveError("unsupported version number")
 		
 		self.preprocess(self.root)
 
 		self.dictionary_key_table = {v: i for i, v in enumerate(sorted(self.dictionary_keys))}
 		self.string_table = {v: i for i, v in enumerate(sorted(self.strings))}
+		self.binary_table = {v: i for i, v in enumerate(sorted(self.binaries))}
 
 		stream = streams.StreamOut(self.endianness)
 		if self.endianness == ">":
@@ -221,8 +259,12 @@ class BYAMLSaver:
 		else:
 			stream.ascii("YB")
 		stream.u16(self.version)
-		stream.u32(0x10 if self.dictionary_key_table else 0)
-		stream.skip(8)
+		if self.has_binary_table:
+			stream.u32(0x14 if self.dictionary_key_table else 0)
+			stream.skip(12)
+		else:
+			stream.u32(0x10 if self.dictionary_key_table else 0)
+			stream.skip(8)
 
 		if self.dictionary_key_table:
 			self.save_string_table(stream, self.dictionary_key_table)
@@ -233,11 +275,20 @@ class BYAMLSaver:
 		if self.string_table:
 			self.save_string_table(stream, self.string_table)
 			stream.align(4)
+		
+		if self.has_binary_table:
+			stream.u32_at(12, stream.tell() if self.binary_table else 0)
+			if self.binary_table:
+				self.save_binary_table(stream, self.binary_table)
+				stream.align(4)
 
 		self.data_offset = stream.tell()
 		stream.skip(self.data_size)
 
-		stream.u32_at(12, stream.tell())
+		if self.has_binary_table:
+			stream.u32_at(16, stream.tell())
+		else:
+			stream.u32_at(12, stream.tell())
 
 		if self.root.type == NodeType.ARRAY: self.save_array(stream, self.root)
 		elif self.root.type == NodeType.DICT: self.save_dictionary(stream, self.root)
@@ -310,6 +361,20 @@ class BYAMLSaver:
 		stream.repeat(addresses, stream.u32)
 		stream.write(strings)
 
+	def save_binary_table(self, stream, table):
+		offset = 8 + 4 * len(table)
+
+		addresses = [offset]
+		binaries = b""
+		for binary in table.keys():
+			binaries += binary
+			addresses.append(offset + len(binaries))
+		
+		stream.u8(NodeType.BINARY_TABLE)
+		stream.u24(len(table))
+		stream.repeat(addresses, stream.u32)
+		stream.write(binaries)
+
 	def save_node(self, stream, node):
 		if node.type == NodeType.STRING:
 			stream.u32(self.string_table[node.value])
@@ -380,17 +445,20 @@ class BYAMLSaver:
 				self.preprocess(element)
 		elif node.type == NodeType.STRING:
 			self.strings.add(node.value)
-		
 		elif node.type == NodeType.BINARY:
-			self.data_size += 4 + len(node.value)
+			if self.has_binary_table:
+				self.binaries.add(node.value)
+			else:
+				self.data_size += 4 + len(node.value)
 		elif node.type in [NodeType.INT64, NodeType.UINT64, NodeType.DOUBLE]:
 			self.data_size += 8
 
 
 class BYAMLFile:
 	def __init__(self):
-		self.endianness = "<"
-		self.version = 5
+		self.endianness = ">"
+		self.version = 1
+		self.has_binary_table = False
 		self.root = BYAMLNode(NodeType.DICT, {})
 	
 	def parse(self, data):
@@ -399,11 +467,13 @@ class BYAMLFile:
 
 		self.endianness = parser.endianness
 		self.version = parser.version
+		self.has_binary_table = parser.has_binary_table
 		self.root = parser.root
 	
 	def save(self):
 		saver = BYAMLSaver()
 		saver.endianness = self.endianness
 		saver.version = self.version
+		saver.has_binary_table = self.has_binary_table
 		saver.root = self.root
 		return saver.save()

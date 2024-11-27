@@ -89,7 +89,7 @@ class StreamIn:
 	def chars(self, num): return "".join(self.repeat(self.char, num))
 	def wchars(self, num): return "".join(self.repeat(self.wchar, num))
 
-	def string(self):
+	def string(self, encoding="utf-8"):
 		data = []
 		byte = self.u8()
 		while byte != 0:
@@ -97,28 +97,33 @@ class StreamIn:
 			byte = self.u8()
 		
 		try:
-			return bytes(data).decode()
+			return bytes(data).decode(encoding)
 		except UnicodeDecodeError:
-			raise ParseError("utf-8 decoding failed")
+			raise ParseError("string decoding failed")
 	
 	def repeat(self, func, count):
 		return [func() for i in range(count)]
 
 	def peek_u32(self): return struct.unpack(self.endianness + "I", self.peek(4))[0]
+	
+	def peek_at(self, pos, size):
+		with self.jump(pos):
+			return self.peek(size)
+	
+	def read_at(self, pos, size):
+		return self.peek_at(pos, size)
 
-	def string_at(self, pos):
-		with self.jump(pos): return self.string()
+	def string_at(self, pos, encoding="utf-8"):
+		with self.jump(pos):
+			return self.string(encoding)
 	
-	def u32_at(self, pos):
-		with self.jump(pos): return self.u32()
-	def u64_at(self, pos):
-		with self.jump(pos): return self.u64()
+	def u8_at(self, pos): return self.read_at(pos, 1)[0]
+	def u32_at(self, pos): return struct.unpack(self.endianness + "I", self.read_at(pos, 4))[0]
+	def u64_at(self, pos): return struct.unpack(self.endianness + "Q", self.read_at(pos, 8))[0]
 	
-	def s64_at(self, pos):
-		with self.jump(pos): return self.s64()
+	def s64_at(self, pos): return struct.unpack(self.endianness + "q", self.read_at(pos, 8))[0]
 	
-	def double_at(self, pos):
-		with self.jump(pos): return self.double()
+	def double_at(self, pos): return struct.unpack(self.endianness + "d", self.read_at(pos, 8))[0]
 
 
 class StreamOut:
