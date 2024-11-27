@@ -166,7 +166,17 @@ def parse_value(stream, type, size=None):
 			curve.parse(stream)
 			value.append(curve)
 		return value
+	elif type == ParameterType.BUFFER_FLOAT:
+		if size is not None:
+			return stream.repeat(stream.float, size // 4)
+		else:
+			raise ParseError(f"unsupported parameter type: {type}")
 	elif type == ParameterType.U32: return stream.u32()
+	elif type == ParameterType.BUFFER_U32:
+		if size is not None:
+			return stream.repeat(stream.u32, size // 4)
+		else:
+			raise ParseError(f"unsupported parameter type: {type}")
 	else:
 		raise ParseError(f"unsupported parameter type: {type}")
 
@@ -198,7 +208,9 @@ def save_value(stream, type, value):
 	elif type == ParameterType.CURVE4:
 		for curve in value:
 			curve.save(stream)
+	elif type == ParameterType.BUFFER_FLOAT: stream.repeat(value, stream.float)
 	elif type == ParameterType.U32: stream.u32(value)
+	elif type == ParameterType.BUFFER_U32: stream.repeat(value, stream.u32)
 	else:
 		raise ParseError(f"unsupported parameter type: {type}")
 
@@ -589,7 +601,6 @@ class PMAAEncoderV2:
 				target_offset += string_offsets[parameter.value] // 4
 			else:
 				target_offset += data_offsets[parameter] // 4
-				#print(parameter_sizes[parameter.type], hex(stream.tell()), hex(stream.tell() + target_offset * 4))
 
 			stream.u32(parameter.hash)
 			stream.u32((parameter.type << 24) | target_offset)

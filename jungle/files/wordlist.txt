@@ -120,6 +120,7 @@ DownDistance
 DrawOffsetY
 EnableShadowCtx
 End
+EnvObjSet
 Fog
 Fog0
 Fog1
@@ -133,6 +134,7 @@ Fog8
 Fog9
 Fovy
 GroundColor
+HDR
 Height
 HemisphereLight
 HemisphereLight0
@@ -161,9 +163,11 @@ IsHorizontalFlip
 IsLightProjOverride
 IsLightViewOverride
 IsSpecColIsDiffCol
+LUT
 Left
 Length
 LightMap
+LightMap0
 LightMapAmbientLight
 LightMapCube
 LightMapDirectionalLight
@@ -247,11 +251,13 @@ adhoc_fog_atten_sky
 adhoc_fog_color
 adhoc_fog_near
 agl
+align
 alloc_from_mem1
 alloc_without_ctx
 ambient_light_num
 amplifier_for_envmap
 anim_trans_vel
+arg
 aspect
 at
 at_offset
@@ -265,6 +271,7 @@ blur_1
 blur_2
 blur_3
 brightness
+calc_type
 cam
 cascade_num
 change_format
@@ -296,6 +303,8 @@ comp_sel_b
 comp_sel_g
 comp_sel_r
 config
+convert_parts_array
+copy_map
 create_half
 create_quarter
 cube_map_max_tex_num
@@ -369,6 +378,7 @@ dynamic_mie_symmetric_prop
 dynamic_mie_symmetrical_prop
 dynamic_rayleigh_amplifier
 edit_type
+effect
 effect_model_heap_size
 enable
 enable_clamped_luminance
@@ -382,6 +392,8 @@ enable_drc_filter_aa
 enable_hiz
 enable_indirect_from_full
 enable_luminance_offset
+enable_mip0
+enable_mip1
 enable_reduce_draw
 enable_shaft_d
 enable_vignetting_2_shape
@@ -394,6 +406,7 @@ env_obj_masked_spot_light_num
 env_obj_masked_spot_light_rig_num
 env_obj_point_light_num
 env_obj_point_light_rig_num
+env_obj_ref_array
 env_obj_spot_light_num
 env_obj_spot_light_rig_num
 ex_iteration
@@ -405,11 +418,13 @@ expand_2
 expand_3
 expand_all_slice
 expand_to_mem2
+ext
 far
 far_enable
 far_end
 far_mul_color
 far_start
+file
 finalblend
 finalgather
 fog_num
@@ -432,6 +447,7 @@ gpu_stress_analyzer_reduce_bufferenable
 ground_color
 group
 half_size_cascade_num
+hdr_enable
 hemisphere_light_num
 hiz_expand_enable
 hue
@@ -485,17 +501,20 @@ light_pre_pass_diffuse_intensity
 light_pre_pass_specular_intensity
 light_prepass_texture_half
 light_type
+lighting_hint
 linear_lighting_enable
 lm_max_cube_map
 lm_max_front_and_back
 lm_max_front_only
 luminance_intensity
+lut_name
 lut_param
 mBaseTextureNo
 mBaseTextureNo_Blend
 mCloudTexBlendRate
 mIsEnable
 mNoiseTextureNo
+mapping_type
 masked_light_shadow_only
 matrix_calc_type
 mbCloudTexBlend
@@ -549,6 +568,7 @@ nld_enable
 nld_half_32bit
 nld_half_mem2
 nld_mem2
+normal_parts_array
 num
 occlusion_query_num
 offset_adjust
@@ -565,10 +585,16 @@ ofx_num_lens_flare_rig_preset
 opa_polygon_offset
 opa_polygon_scale
 order_toycam_hsb
+param
 param_array
 param_root
+parent_map
+parts
 pos
 position
+pow
+pow_mip_max
+priority
 proj_name
 proj_shadow_matrix_view_coordinate
 projection_shadow_num
@@ -587,6 +613,7 @@ reduce_type
 reduced_buffer_16bit
 reduced_buffer_edge_adjust
 reduced_buffer_edge_adjust_coeff
+refer
 refer_entity
 refer_tex
 render_sun_intensity
@@ -596,6 +623,12 @@ rendering_repetition_num
 result_sampler_linear
 rev_polygon_offset
 rev_polygon_scale
+rim_angle
+rim_effect
+rim_enable
+rim_light_ref
+rim_pow
+rim_width
 root
 same_point_epsilon
 saturate_min
@@ -609,6 +642,8 @@ scatter_fog_horz
 scatter_fog_near
 scissor
 scissor_margin
+set_array
+setting
 shadow_map_type
 shaft_d_end
 shaft_d_start
@@ -620,6 +655,7 @@ shaft_intensity
 shaft_threshhold
 shaft_threshold_range
 shape_num
+signature
 size_h
 size_w
 ssao_is_depth_full
@@ -638,6 +674,7 @@ sun_color
 threshhold
 threshhold_balance
 threshold_range
+tool
 toycam_brightness
 toycam_contrast
 toycam_enable
