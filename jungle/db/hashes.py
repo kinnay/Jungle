@@ -1,6 +1,6 @@
 
 import binascii
-import pkg_resources
+import importlib.resources
 
 
 class RainbowTable:
@@ -8,9 +8,8 @@ class RainbowTable:
 		self.crc32_table = None
 	
 	def wordlist(self):
-		filename = pkg_resources.resource_filename("jungle", "files/wordlist.txt")
-		with open(filename) as f:
-			return f.read().splitlines()
+		file = importlib.resources.files().joinpath("files/wordlist.txt")
+		return file.read_text().splitlines()
 	
 	def generate(self, func):
 		table = {}
