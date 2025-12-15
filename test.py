@@ -6,6 +6,7 @@ from jungle.gfd import gfx2
 from jungle.lms import msbp
 from jungle.nw import bfwav
 from jungle.sead import sarc, yaz0
+from jungle.xlink import slink
 import os
 import sys
 
@@ -65,4 +66,5 @@ test_format("gtx", gfx2.Gfx2File)
 test_format("msbp", msbp.MSBPFile)
 test_format("pmaa", pmaa.PMAAFile)
 test_format("sarc", sarc.SARCFile)
+test_format("slink", slink.SLINKFile)
 test_format("yaz0", yaz0.Yaz0File)
