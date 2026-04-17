@@ -1,6 +1,7 @@
 
 from jungle.aal import baatn, bameta, bars, barslist
 from jungle.agl import pmaa
+from jungle.cas import baev
 from jungle.common import byaml
 from jungle.gfd import gfx2
 from jungle.lms import msbp
@@ -17,45 +18,50 @@ YELLOW = chr(0x1F7E1)
 
 
 crash = "--error" in sys.argv
+formats = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 
 
 def test_basic(cls):
-	file = cls()
-	file.save()
+    file = cls()
+    file.save()
 
 def test_format(name, cls):
-	print("%s:" %name)
+    if formats and name not in formats:
+        return
 
-	test_basic(cls)
+    print("%s:" %name)
 
-	if not os.path.isdir("files/%s" %name):
-		return
-	
-	for filename in sorted(os.listdir("files/%s" %name)):
-		with open("files/%s/%s" %(name, filename), "rb") as f:
-			data = f.read()
-		
-		file = cls()
-		try:
-			file.parse(data)
-			saved = file.save()
-		except Exception as e:
-			if crash:
-				raise
-			print("    " + RED + " " + filename + ": " + str(e))
-			continue
-		
-		if saved != data:
-			print("    " + YELLOW + " " + filename + ": mismatch")
-			os.makedirs("files/mismatch", exist_ok=True)
-			with open("files/mismatch/%s" %filename, "wb") as f:
-				f.write(saved)
-		else:
-			print("    " + GREEN + " " + filename)
-	print()
+    test_basic(cls)
+
+    if not os.path.isdir("files/%s" %name):
+        return
+    
+    for filename in sorted(os.listdir("files/%s" %name)):
+        with open("files/%s/%s" %(name, filename), "rb") as f:
+            data = f.read()
+        
+        file = cls()
+        try:
+            file.parse(data)
+            saved = file.save()
+        except Exception as e:
+            if crash:
+                raise
+            print("    " + RED + " " + filename + ": " + str(e))
+            continue
+        
+        if saved != data:
+            print("    " + YELLOW + " " + filename + ": mismatch")
+            os.makedirs("files/mismatch", exist_ok=True)
+            with open("files/mismatch/%s" %filename, "wb") as f:
+                f.write(saved)
+        else:
+            print("    " + GREEN + " " + filename)
+    print()
 
 
 test_format("baatn", baatn.BAATNFile)
+test_format("baev", baev.BAEVFile)
 test_format("bameta", bameta.BAMETAFile)
 test_format("bars", bars.BARSFile)
 test_format("barslist", barslist.BARSLISTFile)

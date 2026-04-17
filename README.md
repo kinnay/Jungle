@@ -20,12 +20,13 @@ The following file formats are currently supported by this library:
 
 | Library | Format | Extensions | Description |
 | --- | --- | --- | --- |
-| Multiple | [BYAML](https://nintendo-formats.com/libs/common/byaml.html) | `.byml` / `.byaml` | Binary YAML |
+| Multiple | [BYAML](https://nintendo-formats.com/libs/common/byaml.html) | `.byml` / `.byaml` / `.bgyml` | Binary YAML |
 | AAL | [BAATN](https://nintendo-formats.com/libs/aal/baatn.html) | `.baatn` | Audio attenuators |
 | AAL | [BAMETA](https://nintendo-formats.com/libs/aal/bameta.html) | `.bameta` | Audio metadata |
 | AAL | [BARS](https://nintendo-formats.com/libs/aal/bars.html) | `.bars` | Audio resources |
 | AAL | [BARSLIST](https://nintendo-formats.com/libs/aal/barslist.html) | `.barslist` | Audio resource lists |
 | AGL | [PMAA](https://nintendo-formats.com/libs/agl/pmaa.html) | `.bagl*` | Graphics parameters |
+| CAS | [BAEV](https://nintendo-formats.com/libs/cas/baev.html) | `.baev` | Animation event archive |
 | GFD | [Gfx2](https://nintendo-formats.com/libs/gfd/gfx2.html) | `.gtx` / `.gsh` | Textures and shaders |
 | LMS | [MSBP](https://nintendo-formats.com/libs/lms/msbp.html) | `.msbp` | Message projects |
 | NW4F | [BFWAV](https://nintendo-formats.com/libs/nw/bfwav.html) | `.bfwav` | Wave files |
