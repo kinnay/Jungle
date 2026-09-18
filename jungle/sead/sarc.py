@@ -56,7 +56,8 @@ class SARCFile:
 
         # Parse SARC header
         stream = streams.StreamIn(data, self.endianness)
-        if stream.ascii(4) != "SARC": raise ParseError("magic number is invalid")
+        if stream.ascii(4) != "SARC":
+            raise ParseError("magic number is invalid")
         if stream.u16() != 0x14: raise ParseError("header size is invalid")
         if stream.u16() != 0xFEFF: raise ParseError("BOM is invalid")
         if stream.u32() != len(data): raise ParseError("file size is invalid")
@@ -73,8 +74,10 @@ class SARCFile:
         stream.pad(2)
 
         # Parse SFAT header
-        if stream.ascii(4) != "SFAT": raise ParseError("SFAT has invalid magic number")
-        if stream.u16() != 0xC: raise ParseError("SFAT has invalid header size")
+        if stream.ascii(4) != "SFAT":
+            raise ParseError("SFAT has invalid magic number")
+        if stream.u16() != 0xC:
+            raise ParseError("SFAT has invalid header size")
 
         num_files = stream.u16()
         if num_files > 0x3FFF:
@@ -90,11 +93,11 @@ class SARCFile:
             attribs = stream.u32()
             start_offset = stream.u32()
             end_offset = stream.u32()
-            file_data = data[data_offset + start_offset : data_offset + end_offset]
+            file_data = \
+                data[data_offset + start_offset : data_offset + end_offset]
 
-            # This is unlikely, but just to be safe
             alignment = calculate_alignment(data_offset + start_offset)
-            if alignment > self.alignment:
+            if alignment < self.alignment:
                 self.alignment = alignment
 
             if attribs >> 24:
@@ -103,13 +106,20 @@ class SARCFile:
                 # Because we don't know which platform the SARC file is made for
                 # we don't know if we should sign extend the filename bytes.
                 # 
-                # We simply try both hashes and check which one matches. Note that
-                # this is only relevant if the filename contains non-ascii characters.
-                # If both hashes are wrong, or the sign extension flag was determined
-                # before, the file must be corrupted.
-                if calculate_hash(name, self.hash_multiplier, self.sign_extend) != hash:
-                    if sign_flipped or calculate_hash(name, self.hash_multiplier, not self.sign_extend) != hash:
+                # We simply try both hashes and check which one matches. Note
+                # that this is only relevant if the filename contains non-ascii
+                # characters. If both hashes are wrong, or the sign extension
+                # flag was determined before, the file must be corrupted.
+                expected_hash = calculate_hash(
+                    name, self.hash_multiplier, self.sign_extend
+                )
+                if expected_hash != hash:
+                    flipped_hash = calculate_hash(
+                        name, self.hash_multiplier, not self.sign_extend
+                    )
+                    if sign_flipped or flipped_hash != hash:
                         raise ParseError("file has unexpected hash")
+                    
                     self.sign_extend = not self.sign_extend
                     sign_flipped = True
                 
@@ -149,12 +159,12 @@ class SARCFile:
             if index > 255:
                 raise SaveError("too many files with the same hash")
             hashes[hash] = index + 1
-            
+
             data_stream.align(self.alignment)
             data_offset = data_stream.tell()
             data_stream.write(data)
 
-            fnt_offset = fnt_stream.tell() - 8
+            fnt_offset = (fnt_stream.tell() - 8) // 4
             fnt_stream.string(name)
             fnt_stream.align(4)
 
