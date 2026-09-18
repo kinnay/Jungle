@@ -134,7 +134,7 @@ class BYAMLDouble(BYAMLNode):
 
 
 @dataclass
-class BYAMLNull(BYAMLNode):
+class BYAMLNone(BYAMLNode):
     value: None = None
 
     def type(self) -> BYAMLNodeType:
@@ -258,7 +258,7 @@ class BYAMLParser:
 
         elif type == BYAMLNodeType.NULL:
             stream.pad(4)
-            return BYAMLNull()
+            return BYAMLNone()
 
         raise ParseError(f"unsupported node type: 0x{type:X}")
     
@@ -586,7 +586,7 @@ class BYAMLSaver:
             stream.double_at(self._data_offset, node.value)
             self._data_offset += 8
         
-        elif isinstance(node, BYAMLNull):
+        elif isinstance(node, BYAMLNone):
             stream.u32(0)
         
         else:
