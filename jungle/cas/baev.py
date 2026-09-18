@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from jungle.errors import ParseError
 from jungle.streams import StreamIn, StreamOut
+from typing import Any
 import enum
 
 
@@ -235,15 +236,16 @@ class BAEVFile:
         type = stream.u32()
         stream.pad(4)
 
+        value: Any
         if type == ParameterType.Integer: value = stream.u32()
         elif type == ParameterType.Float: value = stream.float()
         elif type == ParameterType.Vec3: value = stream.repeat(stream.float, 3)
         elif type == ParameterType.String: value = stream.string_at(stream.u64())
         else:
-            raise ParameterType(f"unsupported parameter type: {type}")
+            raise ParseError(f"unsupported parameter type: {type}")
 
         parameter = BAEVParameter()
-        parameter.type = type
+        parameter.type = ParameterType(type)
         parameter.value = value
         return parameter
     
@@ -307,7 +309,7 @@ class BAEVFile:
         stream.u32(len(self.actions))
         stream.u32(0x18)
 
-        all_indices = []
+        all_indices: list[int] = []
         for hash, indices in self.events.items():
             stream.u32(hash)
             stream.pad(4)
@@ -405,14 +407,15 @@ class BAEVFile:
         stream.u32(parameter.type)
         stream.pad(4)
 
+        value: Any = parameter.value
         if parameter.type == ParameterType.Integer:
-            stream.u32(parameter.value)
+            stream.u32(value)
         elif parameter.type == ParameterType.Float:
-            stream.float(parameter.value)
+            stream.float(value)
         elif parameter.type == ParameterType.Vec3:
-            stream.repeat(parameter.value, stream.float)
+            stream.repeat(value, stream.float)
         elif parameter.type == ParameterType.String:
-            stream.u64(string_offsets[parameter.value])
+            stream.u64(string_offsets[value])
         stream.align(8)
         return stream.tell()
     

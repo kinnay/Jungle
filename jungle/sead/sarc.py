@@ -5,7 +5,7 @@ from jungle import streams
 import struct
 
 
-def calculate_hash(filename, multiplier, sign_extend):
+def calculate_hash(filename: str, multiplier: int, sign_extend: bool) -> int:
     """Calculates the hash for the SFAT section.
 
     In Switch games, each byte of the filename is sign extended.
@@ -18,7 +18,7 @@ def calculate_hash(filename, multiplier, sign_extend):
         hash = hash * multiplier + byte
     return hash & 0xFFFFFFFF
 
-def calculate_alignment(offset):
+def calculate_alignment(offset: int) -> int:
     """Calculates the maximum alignment of a given offset."""
     alignment = 1
     while offset % alignment == 0:
@@ -27,6 +27,15 @@ def calculate_alignment(offset):
 
 
 class SARCFile:
+    version: int
+    endianness: str
+    hash_multiplier: int
+    sign_extend: bool
+    alignment: int
+
+    files: dict[str, bytes]
+    unnamed_files: dict[int, bytes]
+
     def __init__(self):
         self.version = 0x100
         self.endianness = "<"
@@ -37,7 +46,7 @@ class SARCFile:
         self.files = {}
         self.unnamed_files = {}
     
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Determine endianness
         if len(data) < 8:
             raise ParseError("file is too small")
@@ -111,7 +120,7 @@ class SARCFile:
                     raise ParseError("duplicate hash for unnamed file")
                 self.unnamed_files[hash] = file_data
     
-    def save(self):
+    def save(self) -> bytes:
         if self.version != 0x100:
             raise SaveError("unsupported version number")
 
@@ -132,7 +141,7 @@ class SARCFile:
 
         data_stream = streams.StreamOut(self.endianness)
 
-        hashes = {}
+        hashes: dict[int, int] = {}
         for name, data in self.files.items():
             hash = calculate_hash(name, self.hash_multiplier, self.sign_extend)
 
