@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from jungle.errors import ParseError, SaveError
 from jungle.streams import StreamIn, StreamOut
 
+from typing import Generator
+
 import enum
 
 
@@ -12,6 +14,7 @@ class BYAMLNodeType(enum.IntEnum):
 
     STRING = 0xA0
     BINARY = 0xA1
+    BINARY_ANNOTATED = 0xA2
 
     ARRAY = 0xC0
     DICT = 0xC1
@@ -36,6 +39,10 @@ class BYAMLNode:
     def type(self) -> BYAMLNodeType:
         raise NotImplementedError(f"{self.__class__.__name__}.type()")
 
+    def minimum_version(self) -> int:
+        """Returns the minimum BYAML version that supports this node type."""
+        return 1
+
 
 @dataclass(eq=False)
 class BYAMLHashmap(BYAMLNode):
@@ -43,6 +50,10 @@ class BYAMLHashmap(BYAMLNode):
 
     def type(self) -> BYAMLNodeType:
         return BYAMLNodeType.HASHMAP
+
+    def minimum_version(self) -> int:
+        """This is either 6 or 7, not sure."""
+        return 7
 
 
 @dataclass
@@ -59,6 +70,25 @@ class BYAMLBinary(BYAMLNode):
 
     def type(self) -> BYAMLNodeType:
         return BYAMLNodeType.BINARY
+
+    def minimum_version(self) -> int:
+        """
+        This is also supported in Mario Kart 8, but that game is handled
+        separately.
+        """
+        return 4
+
+
+@dataclass
+class BYAMLBinaryAnnotated(BYAMLNode):
+    value: bytes = b""
+    annotation: int = 0
+
+    def type(self) -> BYAMLNodeType:
+        return BYAMLNodeType.BINARY_ANNOTATED
+
+    def minimum_version(self) -> int:
+        return 5
 
 
 @dataclass(eq=False)
@@ -108,6 +138,9 @@ class BYAMLUint(BYAMLNode):
     def type(self) -> BYAMLNodeType:
         return BYAMLNodeType.UINT
 
+    def minimum_version(self) -> int:
+        return 2
+
 
 @dataclass
 class BYAMLInt64(BYAMLNode):
@@ -115,6 +148,9 @@ class BYAMLInt64(BYAMLNode):
 
     def type(self) -> BYAMLNodeType:
         return BYAMLNodeType.INT64
+
+    def minimum_version(self) -> int:
+        return 3
 
 
 @dataclass
@@ -124,6 +160,9 @@ class BYAMLUint64(BYAMLNode):
     def type(self) -> BYAMLNodeType:
         return BYAMLNodeType.UINT64
 
+    def minimum_version(self) -> int:
+        return 3
+
 
 @dataclass
 class BYAMLDouble(BYAMLNode):
@@ -131,6 +170,9 @@ class BYAMLDouble(BYAMLNode):
 
     def type(self) -> BYAMLNodeType:
         return BYAMLNodeType.DOUBLE
+
+    def minimum_version(self) -> int:
+        return 3
 
 
 @dataclass
@@ -142,6 +184,34 @@ class BYAMLNone(BYAMLNode):
 
 
 type BYAMLRoot = BYAMLArray | BYAMLDict | BYAMLHashmap
+
+
+class BYAMLWalker:
+    _visited: set[BYAMLNode]
+
+    def __init__(self):
+        self._visited = set()
+
+    def walk(self, node: BYAMLNode) -> Generator[BYAMLNode]:
+        yield node
+
+        if isinstance(node, BYAMLArray) and node not in self._visited:
+            self._visited.add(node)
+
+            for child in node.value:
+                yield from self.walk(child)
+
+        elif isinstance(node, BYAMLDict) and node not in self._visited:
+            self._visited.add(node)
+
+            for child in node.value.values():
+                yield from self.walk(child)
+
+        elif isinstance(node, BYAMLHashmap) and node not in self._visited:
+            self._visited.add(node)
+
+            for child in node.value.values():
+                yield from self.walk(child)
 
 
 class BYAMLParser:
@@ -234,6 +304,7 @@ class BYAMLParser:
             if index < len(self._string_table):
                 return BYAMLString(self._string_table[index])
             raise ParseError("string index out of range")
+        
         elif type == BYAMLNodeType.BINARY:
             if self._file.has_binary_table:
                 index = stream.u32()
@@ -243,6 +314,13 @@ class BYAMLParser:
             else:
                 with stream.jump(stream.u32()):
                     return BYAMLBinary(stream.read(stream.u32()))
+
+        elif type == BYAMLNodeType.BINARY_ANNOTATED:
+            with stream.jump(stream.u32()):
+                size = stream.u32()
+                annotation = stream.u32()
+                data = stream.read(size)
+                return BYAMLBinaryAnnotated(data, annotation)
         
         elif type == BYAMLNodeType.BOOL: return BYAMLBool(bool(stream.u32()))
         elif type == BYAMLNodeType.INT: return BYAMLInt(stream.s32())
@@ -268,14 +346,15 @@ class BYAMLParser:
         
         pos = stream.tell()
         if pos not in self._array_nodes:
-            array = []
+            node = BYAMLArray()
+            self._array_nodes[pos] = node
+            
             count = stream.u24()
             types = stream.repeat(stream.u8, count)
             
             stream.align(4)
             for type in types:
-                array.append(self._parse_node(stream, type))
-            self._array_nodes[pos] = BYAMLArray(array)
+                node.value.append(self._parse_node(stream, type))
         
         return self._array_nodes[pos]
     
@@ -292,6 +371,9 @@ class BYAMLParser:
         
         pos = stream.tell()
         if pos not in self._dict_nodes:
+            node = BYAMLDict()
+            self._dict_nodes[pos] = node
+
             elements = []
             count = stream.u24()
             for i in range(count):
@@ -305,8 +387,7 @@ class BYAMLParser:
 
             elements.sort(key = lambda element: element[1])
 
-            dictionary = {key: node for key, _, node in elements}
-            self._dict_nodes[pos] = BYAMLDict(dictionary)
+            node.value = {key: node for key, _, node in elements}
         
         return self._dict_nodes[pos]
 
@@ -316,6 +397,9 @@ class BYAMLParser:
 
         pos = stream.tell()
         if pos not in self._hashmap_nodes:
+            node = BYAMLHashmap()
+            self._hashmap_nodes[pos] = node
+
             count = stream.u24()
             with stream.jump(stream.tell() + count * 8):
                 types = stream.repeat(stream.u8, count)
@@ -323,7 +407,8 @@ class BYAMLParser:
             for i in range(count):
                 hash = stream.u32()
                 map[hash] = self._parse_node(stream, types[i])
-            self._hashmap_nodes[pos] = BYAMLHashmap(map)
+            
+            node.value = map
         
         return self._hashmap_nodes[pos]
     
@@ -367,7 +452,6 @@ class BYAMLSaver:
 
     _file: BYAMLFile
 
-    _visited: set[BYAMLNode]
     _dictionary_keys: set[str]
     _strings: set[str]
     _binaries: set[bytes]
@@ -384,7 +468,6 @@ class BYAMLSaver:
     def __init__(self, file: BYAMLFile):
         self._file = file
 
-        self._visited = set()
         self._dictionary_keys = set()
         self._strings = set()
         self._binaries = set()
@@ -401,7 +484,8 @@ class BYAMLSaver:
     def save(self) -> bytes:
         if not 1 <= self._file.version <= 7:
             raise SaveError("unsupported version number")
-        
+
+        self._validate(self._file.root)
         self._preprocess(self._file.root)
 
         self._dictionary_key_table = {
@@ -525,6 +609,7 @@ class BYAMLSaver:
         stream.u24(len(table))
         stream.repeat(addresses, stream.u32)
         stream.write(strings)
+        stream.align(4)
 
     def _save_binary_table(
         self, stream: StreamOut, table: dict[bytes, int]
@@ -541,16 +626,29 @@ class BYAMLSaver:
         stream.u24(len(table))
         stream.repeat(addresses, stream.u32)
         stream.write(binaries)
+        stream.align(4)
 
     def _save_node(self, stream: StreamOut, node: BYAMLNode) -> None:
         if isinstance(node, BYAMLString):
             stream.u32(self._string_table[node.value])
+        
         elif isinstance(node, BYAMLBinary):
+            if self._file.has_binary_table:
+                stream.u32(self._binary_table[node.value])
+            else:
+                stream.u32(self._data_offset)
+                with stream.jump(self._data_offset):
+                    stream.u32(len(node.value))
+                    stream.write(node.value)
+                self._data_offset += 4 + len(node.value)
+
+        elif isinstance(node, BYAMLBinaryAnnotated):
             stream.u32(self._data_offset)
             with stream.jump(self._data_offset):
                 stream.u32(len(node.value))
+                stream.u32(node.annotation)
                 stream.write(node.value)
-            self._data_offset += 4 + len(node.value)
+            self._data_offset += 8 + len(node.value)
         
         elif isinstance(node, BYAMLArray):
             if node in self._nodes:
@@ -592,34 +690,45 @@ class BYAMLSaver:
         else:
             raise SaveError(f"unsupported node type: 0x{node.type():X}")
 
-    def _preprocess(self, node: BYAMLNode) -> None:
+    def _preprocess(self, root: BYAMLNode) -> None:
         """
         Walks through all nodes to generate the string and dictionary key
         tables, and calculate the size of the additional binary data.
         """
 
-        if isinstance(node, BYAMLArray) and node not in self._visited:
-            self._visited.add(node)
-            for element in node.value:
-                self._preprocess(element)
-        elif isinstance(node, BYAMLDict) and node not in self._visited:
-            self._visited.add(node)
-            for key, value in node.value.items():
-                self._dictionary_keys.add(key)
-                self._preprocess(value)
-        elif isinstance(node, BYAMLHashmap) and node not in self._visited:
-            self._visited.add(node)
-            for element in node.value.values():
-                self._preprocess(element)
-        elif isinstance(node, BYAMLString):
-            self._strings.add(node.value)
-        elif isinstance(node, BYAMLBinary):
-            if self._file.has_binary_table:
-                self._binaries.add(node.value)
-            else:
-                self._data_size += 4 + len(node.value)
-        elif isinstance(node, (BYAMLInt64, BYAMLUint64, BYAMLDouble)):
-            self._data_size += 8
+        walker = BYAMLWalker()
+        for node in walker.walk(root):
+            if isinstance(node, BYAMLDict):
+                for key in node.value:
+                    self._dictionary_keys.add(key)
+            elif isinstance(node, BYAMLString):
+                self._strings.add(node.value)
+            elif isinstance(node, BYAMLBinary):
+                if self._file.has_binary_table:
+                    self._binaries.add(node.value)
+                else:
+                    self._data_size += 4 + len(node.value)
+            elif isinstance(node, BYAMLBinaryAnnotated):
+                self._data_size += 8 + len(node.value)
+            elif isinstance(node, (BYAMLInt64, BYAMLUint64, BYAMLDouble)):
+                self._data_size += 8
+
+    def _validate(self, root: BYAMLNode) -> None:
+        """
+        Walks through all nodes and checks whether the version that is specified
+        for the BYAML file supports them.
+        """
+
+        walker = BYAMLWalker()
+        for node in walker.walk(root):
+            if isinstance(node, BYAMLBinary) and self._file.has_binary_table:
+                continue
+
+            minimum_version = node.minimum_version()
+            if minimum_version > self._file.version:
+                message = "encountered a node that requires at least BYAML " \
+                    f"version {minimum_version}"
+                raise SaveError(message)
 
 
 class BYAMLFile:

@@ -6,7 +6,7 @@ long_description = \
 
 setuptools.setup(
     name = "python-jungle",
-    version = "0.0.2",
+    version = "0.0.3",
     description = "A library to work with Nintendo file formats.",
     long_description = long_description,
     author = "Yannik Marchand",
