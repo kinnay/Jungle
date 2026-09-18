@@ -33,11 +33,19 @@ def test_format(name, cls):
 
     test_basic(cls)
 
-    if not os.path.isdir("files/%s" %name):
+    if not os.path.isdir(os.path.join("files", name)):
         return
+
+    paths = []
+    for dirpath, dirnames, filenames in os.walk(os.path.join("files", name)):
+        for filename in filenames:
+            filepath = os.path.join(dirpath, filename)
+            paths.append(filepath)
     
-    for filename in sorted(os.listdir("files/%s" %name)):
-        with open("files/%s/%s" %(name, filename), "rb") as f:
+    for path in sorted(paths):
+        filename = os.path.basename(path)
+
+        with open(path, "rb") as f:
             data = f.read()
         
         file = cls()
@@ -47,16 +55,16 @@ def test_format(name, cls):
         except Exception as e:
             if crash:
                 raise
-            print("    " + RED + " " + filename + ": " + str(e))
+            print(f"    {RED} {filename}: {e}")
             continue
         
         if saved != data:
-            print("    " + YELLOW + " " + filename + ": mismatch")
+            print(f"    {YELLOW} {filename}: mismatch")
             os.makedirs("files/mismatch", exist_ok=True)
-            with open("files/mismatch/%s" %filename, "wb") as f:
+            with open(os.path.join("files/mismatch", filename), "wb") as f:
                 f.write(saved)
         else:
-            print("    " + GREEN + " " + filename)
+            print(f"    {GREEN} {filename}")
     print()
 
 
