@@ -8,7 +8,8 @@ class RainbowTable:
         self.crc32_table = None
     
     def wordlist(self):
-        file = importlib.resources.files().joinpath("files/wordlist.txt")
+        file = \
+            importlib.resources.files("jungle").joinpath("files/wordlist.txt")
         return file.read_text().splitlines()
     
     def generate(self, func):
