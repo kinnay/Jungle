@@ -29,6 +29,7 @@ The following file formats are currently supported by this library:
 | CAS | [BAEV](https://nintendo-formats.com/libs/cas/baev.html) | `.baev` | Animation event archive |
 | GFD | [Gfx2](https://nintendo-formats.com/libs/gfd/gfx2.html) | `.gtx` / `.gsh` | Textures and shaders |
 | LMS | [MSBP](https://nintendo-formats.com/libs/lms/msbp.html) | `.msbp` | Message projects |
+| LMS | [MSBT](https://nintendo-formats.com/libs/lms/msbt.html) | `.msbt` | Messages |
 | NW4F | [BFWAV](https://nintendo-formats.com/libs/nw/bfwav.html) | `.bfwav` | Wave files |
 | SEAD | [SARC](https://nintendo-formats.com/libs/sead/sarc.html) | `.sarc` | Archives |
 | SEAD | [SZS](https://nintendo-formats.com/libs/sead/yaz0.html) | `.szs` | Yaz0 compression |

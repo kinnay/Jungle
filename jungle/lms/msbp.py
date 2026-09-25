@@ -113,7 +113,7 @@ class MSBPFile:
                 if "CLB1" not in file.blocks:
                     raise ParseError("CLB1 block is missing")
                 
-                labels = file.parse_labels(file.blocks["CLB1"])
+                labels = file.parse_labels(file.blocks["CLB1"])[0]
                 self.colors = {
                     label: colors[index] for label, index in \
                         sorted(labels.items(), key=lambda x: x[1])
@@ -127,7 +127,7 @@ class MSBPFile:
                 raise ParseError("ALI2 block is missing")
             enums = self.parse_attribute_enums(file.blocks["ALI2"])
             attributes = self.parse_attributes(file.blocks["ATI2"], enums)
-            labels = file.parse_labels(file.blocks["ALB1"])
+            labels = file.parse_labels(file.blocks["ALB1"])[0]
             self.attributes = {
                 label: attributes[index] for label, index in \
                     sorted(labels.items(), key=lambda x: x[1])
@@ -148,7 +148,7 @@ class MSBPFile:
             if "SLB1" not in file.blocks:
                 raise ParseError("SLB1 block is missing")
             styles = self.parse_styles(file.blocks["SYL3"])
-            labels = file.parse_labels(file.blocks["SLB1"])
+            labels = file.parse_labels(file.blocks["SLB1"])[0]
             self.styles = {
                 label: styles[index] for label, index in \
                     sorted(labels.items(), key=lambda x: x[1])

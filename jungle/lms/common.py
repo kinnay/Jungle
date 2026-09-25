@@ -77,11 +77,12 @@ class MessageFile:
             self.blocks[type] = stream.read(size)
             stream.pad((16 - size % 16) % 16, b"\xAB")
     
-    def parse_labels(self, data: bytes) -> dict[str, int]:
+    def parse_labels(self, data: bytes) -> tuple[dict[str, int], int]:
         stream = streams.StreamIn(data, self.endianness)
 
         labels = {}
-        for i in range(stream.u32()):
+        buckets = stream.u32()
+        for i in range(buckets):
             count = stream.u32()
             offset = stream.u32()
             with stream.jump(offset):
@@ -89,7 +90,7 @@ class MessageFile:
                     label = stream.ascii(stream.u8())
                     index = stream.u32()
                     labels[label] = index
-        return labels
+        return labels, buckets
 
     def save(self) -> bytes:
         file_size = 0x20
