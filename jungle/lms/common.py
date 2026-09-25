@@ -1,23 +1,36 @@
 
+"""
+Implements the container format that is used around MSBP, MSBT and MSBF files.
+"""
+
+
 from jungle.errors import ParseError
 from jungle import streams
+
+import enum
 import struct
 
 
-def determine_bucket(label, num_buckets):
+def determine_bucket(label: str, num_buckets: int) -> int:
     hash = 0
     for char in label:
         hash = hash * 0x492 + ord(char)
     return (hash & 0xFFFFFFFF) % num_buckets
 
 
-class Encoding:
+class Encoding(enum.IntEnum):
     UTF8 = 0
     UTF16 = 1
     UTF32 = 2
 
 
 class MessageFile:
+    magic: str
+    endianness: str
+    encoding: Encoding
+    version: int
+    blocks: dict[str, bytes]
+
     def __init__(self):
         self.magic = "xxxxxxxx"
         self.endianness = "<"
@@ -25,7 +38,7 @@ class MessageFile:
         self.version = 0
         self.blocks = {}
         
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Determine endianness
         if len(data) < 10:
             raise ParseError("file is too small")
@@ -42,9 +55,10 @@ class MessageFile:
         
         stream.pad(2)
 
-        self.encoding = stream.u8()
-        if self.encoding not in [Encoding.UTF8, Encoding.UTF16, Encoding.UTF32]:
+        encoding = stream.u8()
+        if encoding not in Encoding:
             raise ParseError("text encoding is invalid")
+        self.encoding = Encoding(encoding)
         
         self.version = stream.u8()
 
@@ -63,7 +77,7 @@ class MessageFile:
             self.blocks[type] = stream.read(size)
             stream.pad((16 - size % 16) % 16, b"\xAB")
     
-    def parse_labels(self, data):
+    def parse_labels(self, data: bytes) -> dict[str, int]:
         stream = streams.StreamIn(data, self.endianness)
 
         labels = {}
@@ -77,7 +91,7 @@ class MessageFile:
                     labels[label] = index
         return labels
 
-    def save(self):
+    def save(self) -> bytes:
         file_size = 0x20
         for block in self.blocks.values():
             file_size += 16 + (len(block) + 15) & ~15
@@ -101,14 +115,14 @@ class MessageFile:
             stream.pad((16 - len(data) % 16) % 16, b"\xAB")
         return stream.get()
     
-    def save_labels(self, labels, num_buckets):
-        buckets = [[] for i in range(num_buckets)]
+    def save_labels(self, labels: dict[str, int], num_buckets: int) -> bytes:
+        buckets: list[list[tuple[str, int]]] = [[] for i in range(num_buckets)]
         sizes = [0] * num_buckets
         
         for label, index in labels.items():
-            bucket = determine_bucket(label, num_buckets)
-            buckets[bucket].append((label, index))
-            sizes[bucket] += 5 + len(label)
+            bucket_index = determine_bucket(label, num_buckets)
+            buckets[bucket_index].append((label, index))
+            sizes[bucket_index] += 5 + len(label)
         
         stream = streams.StreamOut(self.endianness)
         stream.u32(num_buckets)
