@@ -9,6 +9,16 @@ from typing import Generator
 import enum
 
 
+type BYAMLValue = \
+    None | bool | int | float | str | bytes | tuple[bytes, int] | \
+    list[BYAMLValue] | dict[str, BYAMLValue] | dict[int, BYAMLValue]
+
+
+def create_python_object(node: BYAMLNode) -> BYAMLValue:
+    converter = BYAMLConverter()
+    return converter.convert(node)
+
+
 class BYAMLNodeType(enum.IntEnum):
     HASHMAP = 0x20
 
@@ -212,6 +222,66 @@ class BYAMLWalker:
 
             for child in node.value.values():
                 yield from self.walk(child)
+
+
+class BYAMLConverter:
+    """
+    Converts a BYAML node to a Python object, including all children if
+    applicable.
+    """
+
+    _arrays: dict[BYAMLNode, list[BYAMLValue]]
+    _dicts: dict[BYAMLNode, dict[str, BYAMLValue]]
+    _hashmaps: dict[BYAMLNode, dict[int, BYAMLValue]]
+
+    def convert(self, node: BYAMLNode) -> BYAMLValue:
+        if isinstance(node, (
+            BYAMLNone, BYAMLBool, BYAMLInt, BYAMLUint, BYAMLInt64, BYAMLUint64,
+            BYAMLFloat, BYAMLDouble, BYAMLString, BYAMLBinary
+        )):
+            return node.value
+
+        elif isinstance(node, BYAMLBinaryAnnotated):
+            return node.value, node.annotation
+
+        elif isinstance(node, BYAMLArray):
+            if node in self._arrays:
+                return self._arrays[node]
+
+            array: list[BYAMLValue] = []
+            self._arrays[node] = array
+
+            for value in node.value:
+                array.append(self.convert(value))
+
+            return array
+
+        elif isinstance(node, BYAMLDict):
+            if node in self._dicts:
+                return self._dicts[node]
+
+            dictionary: dict[str, BYAMLValue] = {}
+            self._dicts[node] = dictionary
+
+            for key, value in node.value.items():
+                dictionary[key] = self.convert(value)
+
+            return dictionary
+                        
+        elif isinstance(node, BYAMLHashmap):
+            if node in self._hashmaps:
+                return self._hashmaps[node]
+            
+            map: dict[int, BYAMLValue] = {}
+            self._hashmaps[node] = map
+
+            for hash, value in node.value.items():
+                map[hash] = self.convert(value)
+
+            return map
+
+        else:
+            raise TypeError("Unsupported node type")
 
 
 class BYAMLParser:
