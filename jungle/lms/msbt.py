@@ -112,7 +112,7 @@ class MSBTFile:
         else:
             func = stream.u32
             
-        content = []
+        content: list[str | Tag] = []
         text = ""
         while True:
             char = func()
