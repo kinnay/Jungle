@@ -79,7 +79,7 @@ class MSBPFile:
         self.styles = None
         self.filenames = None
 
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Parse header and blocks
         file = common.MessageFile()
         file.parse(data)
