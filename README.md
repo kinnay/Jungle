@@ -2,13 +2,9 @@
 This projects implements parsers for various file formats can be found in Nintendo games. It has been written to support [research](https://github.com/kinnay/Nintendo-File-Formats), and it is also used in a [viewer tool](https://github.com/kinnay/panorama).
 
 ## Installation
-The package is currently not available on pip, but it can be installed as follows:
+This package can be installed with `pip3 install jungle-package`.
 
-```bash
-git clone https://github.com/kinnay/jungle.git jungle
-cd jungle
-pip3 install .
-```
+Python 3.13 or later is required.
 
 ## Testing
 Every parser that is implemented in this package must be sound and complete. This means that, given an arbitrary file from a Nintendo game, decoding and reencoding that file must always produce the original file again.

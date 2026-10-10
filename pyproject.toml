@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools >= 77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jungle-package"
+version = "0.0.2"
+requires-python = ">= 3.13"
+authors = [
+    {name = "Yannik Marchand", email = "ymarchand@me.com"}
+]
+description = "A library to work with Nintendo file formats."
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+
+[project.urls]
+Repository = "https://github.com/kinnay/jungle.git"
+Issues = "https://github.com/kinnay/jungle/issues"
+
+[tool.setuptools.packages.find]
+namespaces = true
+include = ["jungle", "jungle.*"]
