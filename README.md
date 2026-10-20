@@ -30,6 +30,7 @@ The following file formats are currently supported by this library:
 | SEAD | [SARC](https://nintendo-formats.com/libs/sead/sarc.html) | `.sarc` | Archives |
 | SEAD | [SZS](https://nintendo-formats.com/libs/sead/yaz0.html) | `.szs` | Yaz0 compression |
 | XLINK | [SLINK](https://nintendo-formats.com/libs/xlink/slink.html) | `.slink` | Sound links |
+| Switch | [BDF](https://nintendo-formats.com/libs/switch/bdf.html) | `.bdf` | Certificate list |
 
 For some file formats, only specific versions are currently supported.
 

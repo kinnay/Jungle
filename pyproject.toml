@@ -15,8 +15,8 @@ license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 
 [project.urls]
-Repository = "https://github.com/kinnay/jungle.git"
-Issues = "https://github.com/kinnay/jungle/issues"
+Repository = "https://github.com/kinnay/Jungle.git"
+Issues = "https://github.com/kinnay/Jungle/issues"
 
 [tool.setuptools.packages.find]
 namespaces = true

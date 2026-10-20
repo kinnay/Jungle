@@ -7,6 +7,7 @@ from jungle.gfd import gfx2
 from jungle.lms import msbp, msbt
 from jungle.nw import bfwav
 from jungle.sead import sarc, yaz0
+from jungle.switch import bdf
 from jungle.xlink import slink
 import os
 import sys
@@ -73,6 +74,7 @@ test_format("baev", baev.BAEVFile)
 test_format("bameta", bameta.BAMETAFile)
 test_format("bars", bars.BARSFile)
 test_format("barslist", barslist.BARSLISTFile)
+test_format("bdf", bdf.BDFFile)
 test_format("bfwav", bfwav.BFWAVFile)
 test_format("byaml", byaml.BYAMLFile)
 test_format("gsh", gfx2.Gfx2File)
