@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from jungle.errors import ParseError, SaveError
 from jungle.lms import common
 from jungle.streams import StreamIn, StreamOut
+from jungle import utils
 
 import enum
 
@@ -175,16 +176,13 @@ class MSBPFile:
 
         attributes = []
         for i in range(stream.u32()):
-            type = stream.u8()
+            type = utils.parse_enum(stream.u8(), ValueType)
             stream.pad(1)
             enum_id = stream.u16()
             offset = stream.u32()
 
-            if type not in ValueType:
-                raise ParseError(f"unsupported attribute type: {type}")
-
             attribute = Attribute()
-            attribute.type = ValueType(type)
+            attribute.type = type
             attribute.offset = offset
             if type == ValueType.Enum:
                 attribute.labels = enums[enum_id]
@@ -262,12 +260,8 @@ class MSBPFile:
         for offset in offsets:
             stream.seek(offset)
 
-            type = stream.u8()
-            if type not in ValueType:
-                raise ParseError(f"unsupported parameter type: {type}")
-
             parameter = Parameter()
-            parameter.type = ValueType(type)
+            parameter.type = utils.parse_enum(stream.u8(), ValueType)
             if parameter.type == ValueType.Enum:
                 stream.pad(1)
                 indices = stream.repeat(stream.u16, stream.u16())

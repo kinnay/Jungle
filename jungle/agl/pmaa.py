@@ -1,178 +1,187 @@
 
+from dataclasses import dataclass, field
 from jungle.errors import ParseError, SaveError
-from jungle import streams
+from jungle import streams, utils
+from typing import Any
+
+import enum
 import struct
+import typing
 
 
 MAGIC_NUMBER = struct.unpack(">I", b"PMAA")[0]
 
 
-class ParameterType:
-    BOOL = 0
+class ParameterType(enum.IntEnum):
+    Bool = 0
     F32 = 1
-    INT = 2
-    VEC2 = 3
-    VEC3 = 4
-    VEC4 = 5
-    COLOR = 6
-    STRING32 = 7
-    STRING64 = 8
-    CURVE1 = 9
-    CURVE2 = 10
-    CURVE3 = 11
-    CURVE4 = 12
-    BUFFER_INT = 13
-    BUFFER_FLOAT = 14
-    STRING256 = 15
-    QUAT = 16
+    Int = 2
+    Vec2 = 3
+    Vec3 = 4
+    Vec4 = 5
+    Color = 6
+    String32 = 7
+    String64 = 8
+    Curve1 = 9
+    Curve2 = 10
+    Curve3 = 11
+    Curve4 = 12
+    BufferInt = 13
+    BufferFloat = 14
+    String256 = 15
+    Quat = 16
     U32 = 17
-    BUFFER_U32 = 18
-    BUFFER_BINARY = 19
-    STRING_REF = 20
+    BufferU32 = 18
+    BufferBinary = 19
+    StringRef = 20
 
 
-class CurveType:
-    LINEAR = 0
-    HERMIT = 1
-    STEP = 2
-    SIN = 3
-    COS = 4
-    SIN_POW2 = 5
-    LINEAR_2D = 6
-    HERMIT_2D = 7
-    STEP_2D = 8
-    NONUNIFORM_SPLINE = 9
-    HERMIT_2D_SMOOTH = 10
+class CurveType(enum.IntEnum):
+    Linear = 0
+    Hermit = 1
+    Step = 2
+    Sin = 3
+    Cos = 4
+    SinPow2 = 5
+    Linear2D = 6
+    Hermit2D = 7
+    Step2D = 8
+    NonuniformSpline = 9
+    Hermit2DSmooth = 10
 
 
+@dataclass
 class Curve:
-    def __init__(self):
-        self.type = CurveType.HERMIT_2D
-        self.values = [.0, .0, .5, .5, .5, .5, 1., 1., .5]
+    type: CurveType = CurveType.Hermit2D
+    values: list[float] = field(
+        default_factory=lambda: [.0, .0, .5, .5, .5, .5, 1., 1., .5]
+    )
     
-    def parse(self, stream):
+    def parse(self, stream: StreamIn) -> None:
         num_values = stream.u32()
         if num_values > 30:
             raise ParseError("curve has too many points")
 
-        self.type = stream.u32()
+        self.type = utils.parse_enum(stream.u32(), CurveType)
         self.values = stream.repeat(stream.float, num_values)
         stream.skip(4 * (30 - num_values))
     
-    def save(self, stream):
-        values = [.0, .0, .5, .5, .5, .5, 1., 1., .5] + [1.] * 21
-        values = self.values + values[len(self.values):]
+    def save(self, stream: StreamOut) -> None:
+        preset = [.0, .0, .5, .5, .5, .5, 1., 1., .5] + [1.] * 21
+        values = self.values + preset[len(self.values):]
 
         stream.u32(len(self.values))
         stream.u32(self.type)
         stream.repeat(values, stream.float)
 
 
+@dataclass(eq=False)
 class Parameter:
-    def __init__(self):
-        self.hash = 0
-        self.type = ParameterType.INT
-        self.value = 0
+    hash: int = 0
+    type: ParameterType = ParameterType.Int
+    value: Any = 0
 
 
+@dataclass
 class ParameterObject:
-    def __init__(self):
-        self.hash = 0
-        self.type_hash = 0
-        self.parameters = []
+    hash: int = 0
+    type_hash: int = 0
+    parameters: list[Parameter] = field(default_factory=list)
 
 
+@dataclass
 class ParameterList:
-    def __init__(self):
-        self.hash = 0
-        self.children = []
-        self.objects = []
+    hash: int = 0
+    children: list[ParameterList] = field(default_factory=list)
+    objects: list[ParameterObject] = field(default_factory=list)
 
 
 string_types = [
-    ParameterType.STRING32, ParameterType.STRING64
+    ParameterType.String32, ParameterType.String64
 ]
 
 parameter_sizes = {
-    ParameterType.BOOL: 1,
+    ParameterType.Bool: 1,
     ParameterType.F32: 4,
-    ParameterType.INT: 4,
-    ParameterType.VEC2: 8,
-    ParameterType.VEC3: 12,
-    ParameterType.VEC4: 16,
-    ParameterType.COLOR: 16,
-    ParameterType.CURVE1: 128,
-    ParameterType.CURVE2: 256,
-    ParameterType.CURVE3: 384,
-    ParameterType.CURVE4: 512,
+    ParameterType.Int: 4,
+    ParameterType.Vec2: 8,
+    ParameterType.Vec3: 12,
+    ParameterType.Vec4: 16,
+    ParameterType.Color: 16,
+    ParameterType.Curve1: 128,
+    ParameterType.Curve2: 256,
+    ParameterType.Curve3: 384,
+    ParameterType.Curve4: 512,
     ParameterType.U32: 4
 }
 
-def parse_value(stream, type, size=None):
-    if type == ParameterType.BOOL: return stream.bool()
+def parse_value(
+    stream: StreamIn, type: ParameterType, size: int | None = None
+) -> Any:
+    if type == ParameterType.Bool: return stream.bool()
     elif type == ParameterType.F32: return stream.float()
-    elif type == ParameterType.INT: return stream.s32()
-    elif type == ParameterType.VEC2:
+    elif type == ParameterType.Int: return stream.s32()
+    elif type == ParameterType.Vec2:
         x = stream.float()
         y = stream.float()
         return x, y
-    elif type == ParameterType.VEC3:
+    elif type == ParameterType.Vec3:
         x = stream.float()
         y = stream.float()
         z = stream.float()
         return x, y, z
-    elif type == ParameterType.VEC4:
+    elif type == ParameterType.Vec4:
         x = stream.float()
         y = stream.float()
         z = stream.float()
         w = stream.float()
         return x, y, z, w
-    elif type == ParameterType.COLOR:
+    elif type == ParameterType.Color:
         r = stream.float()
         g = stream.float()
         b = stream.float()
         a = stream.float()
         return r, g, b, a
-    elif type == ParameterType.STRING32:
+    elif type == ParameterType.String32:
         if size is not None:
             return stream.fixed_string(size, 32)
         return stream.string()
-    elif type == ParameterType.STRING64:
+    elif type == ParameterType.String64:
         if size is not None:
             return stream.fixed_string(size, 64)
         return stream.string()
-    elif type == ParameterType.CURVE1:
-        value = Curve()
-        value.parse(stream)
-        return value
-    elif type == ParameterType.CURVE1:
+    elif type == ParameterType.Curve1:
+        curve = Curve()
+        curve.parse(stream)
+        return curve
+    elif type == ParameterType.Curve2:
         value = []
         for i in range(2):
             curve = Curve()
             curve.parse(stream)
             value.append(curve)
         return value
-    elif type == ParameterType.CURVE1:
+    elif type == ParameterType.Curve3:
         value = []
         for i in range(3):
             curve = Curve()
             curve.parse(stream)
             value.append(curve)
         return value
-    elif type == ParameterType.CURVE4:
+    elif type == ParameterType.Curve4:
         value = []
         for i in range(4):
             curve = Curve()
             curve.parse(stream)
             value.append(curve)
         return value
-    elif type == ParameterType.BUFFER_FLOAT:
+    elif type == ParameterType.BufferFloat:
         if size is not None:
             return stream.repeat(stream.float, size // 4)
         else:
             raise ParseError(f"unsupported parameter type: {type}")
     elif type == ParameterType.U32: return stream.u32()
-    elif type == ParameterType.BUFFER_U32:
+    elif type == ParameterType.BufferU32:
         if size is not None:
             return stream.repeat(stream.u32, size // 4)
         else:
@@ -180,43 +189,44 @@ def parse_value(stream, type, size=None):
     else:
         raise ParseError(f"unsupported parameter type: {type}")
 
-def save_value(stream, type, value):
-    if type == ParameterType.BOOL: stream.bool(value)
+def save_value(stream: StreamOut, type: ParameterType, value: Any) -> None:
+    if type == ParameterType.Bool: stream.bool(value)
     elif type == ParameterType.F32: stream.float(value)
-    elif type == ParameterType.INT: stream.s32(value)
-    elif type == ParameterType.VEC2:
+    elif type == ParameterType.Int: stream.s32(value)
+    elif type == ParameterType.Vec2:
         for i in range(2):
             stream.float(value[i])
-    elif type == ParameterType.VEC3:
+    elif type == ParameterType.Vec3:
         for i in range(3):
             stream.float(value[i])
-    elif type == ParameterType.VEC4:
+    elif type == ParameterType.Vec4:
         for i in range(4):
             stream.float(value[i])
-    elif type == ParameterType.COLOR:
+    elif type == ParameterType.Color:
         for i in range(4):
             stream.float(value[i])
-    elif type == ParameterType.STRING32: stream.fixed_string(value, 32)
-    elif type == ParameterType.STRING64: stream.fixed_string(value, 64)
-    elif type == ParameterType.CURVE1: value.save(stream)
-    elif type == ParameterType.CURVE2:
+    elif type == ParameterType.String32: stream.fixed_string(value, 32)
+    elif type == ParameterType.String64: stream.fixed_string(value, 64)
+    elif type == ParameterType.Curve1: value.save(stream)
+    elif type == ParameterType.Curve2:
         for curve in value:
             curve.save(stream)
-    elif type == ParameterType.CURVE3:
+    elif type == ParameterType.Curve3:
         for curve in value:
             curve.save(stream)
-    elif type == ParameterType.CURVE4:
+    elif type == ParameterType.Curve4:
         for curve in value:
             curve.save(stream)
-    elif type == ParameterType.BUFFER_FLOAT: stream.repeat(value, stream.float)
+    elif type == ParameterType.BufferFloat: stream.repeat(value, stream.float)
     elif type == ParameterType.U32: stream.u32(value)
-    elif type == ParameterType.BUFFER_U32: stream.repeat(value, stream.u32)
+    elif type == ParameterType.BufferU32: stream.repeat(value, stream.u32)
     else:
         raise ParseError(f"unsupported parameter type: {type}")
 
 
 class StreamIn(streams.StreamIn):
-    """Memory stream that detects quirks of Nintendo's tooling.
+    """
+    Memory stream that detects quirks of Nintendo's tooling.
 
     In some games, strings with a fixed size contain uninitialized bytes
     behind the null terminator. This stream class detects whether that
@@ -227,12 +237,15 @@ class StreamIn(streams.StreamIn):
     number of bytes. This class detects that.
     """
 
-    def __init__(self, data, endianness):
+    minimize_strings: bool | None
+    string_padding: int | None
+
+    def __init__(self, data: bytes, endianness: str):
         super().__init__(data, endianness)
         self.minimize_strings = None
         self.string_padding = None
     
-    def fixed_string(self, size, max_size=None):
+    def fixed_string(self, size: int, max_size: int | None = None) -> str:
         data = self.read(size)
         if b"\0" not in data:
             raise ParseError("expected null terminator behind string")
@@ -256,7 +269,8 @@ class StreamIn(streams.StreamIn):
 
 
 class StreamOut(streams.StreamOut):
-    """Memory stream that reproduces quirks of Nintendo's tooling.
+    """
+    Memory stream that reproduces quirks of Nintendo's tooling.
 
     In some games, strings with a fixed size contain uninitialized bytes
     behind the null terminator. This stream class mimics that behavior.
@@ -266,12 +280,20 @@ class StreamOut(streams.StreamOut):
     number of bytes. This class mimics the desired behavior.
     """
 
-    def __init__(self, endianness, minimize_strings=None, string_padding=None):
+    minimize_strings: bool
+    string_padding: int
+
+    def __init__(
+        self, endianness: str, minimize_strings: bool | None = None,
+        string_padding: int | None = None
+    ):
         super().__init__(endianness)
         self.minimize_strings = minimize_strings or False
         self.string_padding = string_padding or 0
     
-    def fixed_string(self, value, size, allow_minize=True):
+    def fixed_string(
+        self, value: str, size: int, allow_minize: bool = True
+    ) -> None:
         data = value.encode() + b"\0"
         if not allow_minize or not self.minimize_strings:
             data = data.ljust(size - 1, bytes([self.string_padding]))
@@ -281,31 +303,43 @@ class StreamOut(streams.StreamOut):
         self.write(data)
 
 
+class PMAADecoderType(typing.Protocol):
+    def parse(self, data: bytes) -> None:
+        ...
+
+
+class PMAAEncoderType(typing.Protocol):
+    def save(self, file: PMAAFile) -> bytes:
+        ...
+
+
 class PMAADecoderV1:
-    def __init__(self, file):
-        self.file = file
+    _file: PMAAFile
+
+    def __init__(self, file: PMAAFile):
+        self._file = file
     
-    def parse(self, data):
-        stream = StreamIn(data, self.file.endianness)
+    def parse(self, data: bytes) -> None:
+        stream = StreamIn(data, self._file.endianness)
         stream.skip(8)
 
         endianness_flag = "<" if stream.u32() & 1 else ">"
-        if endianness_flag != self.file.endianness:
+        if endianness_flag != self._file.endianness:
             raise ParseError("unexpected endianness flag")
         
         if stream.u32() != len(data): raise ParseError("file size is invalid")
 
-        self.file.effect_version = stream.u32()
-        self.file.effect_type = stream.fixed_string(stream.u32())
+        self._file.effect_version = stream.u32()
+        self._file.effect_type = stream.fixed_string(stream.u32())
 
-        self.file.align = stream.tell() & 3 == 0
+        self._file.align = stream.tell() & 3 == 0
 
-        self.file.root = self.parse_parameter_list(stream)
+        self._file.root = self._parse_parameter_list(stream)
 
-        self.file.minimize_strings = stream.minimize_strings
-        self.file.string_padding = stream.string_padding
+        self._file.minimize_strings = stream.minimize_strings
+        self._file.string_padding = stream.string_padding
     
-    def parse_parameter_list(self, stream):
+    def _parse_parameter_list(self, stream: StreamIn) -> ParameterList:
         stream.skip(4)
 
         list = ParameterList()
@@ -314,12 +348,12 @@ class PMAADecoderV1:
         num_children = stream.u32()
         num_objects = stream.u32()
         for i in range(num_children):
-            list.children.append(self.parse_parameter_list(stream))		
+            list.children.append(self._parse_parameter_list(stream))		
         for i in range(num_objects):
-            list.objects.append(self.parse_parameter_object(stream))
+            list.objects.append(self._parse_parameter_object(stream))
         return list
     
-    def parse_parameter_object(self, stream):
+    def _parse_parameter_object(self, stream: StreamIn) -> ParameterObject:
         stream.skip(4)
 
         num_parameters = stream.u32()
@@ -328,15 +362,15 @@ class PMAADecoderV1:
         object.hash = stream.u32()
         object.type_hash = stream.u32()
         for i in range(num_parameters):
-            object.parameters.append(self.parse_parameter(stream))
+            object.parameters.append(self._parse_parameter(stream))
         return object
     
-    def parse_parameter(self, stream):
+    def _parse_parameter(self, stream: StreamIn) -> Parameter:
         base = stream.tell()
         size = stream.u32()
 
         parameter = Parameter()
-        parameter.type = stream.u32()
+        parameter.type = utils.parse_enum(stream.u32(), ParameterType)
         parameter.hash = stream.u32()
         parameter.value = parse_value(stream, parameter.type, size - 12)
 
@@ -346,34 +380,36 @@ class PMAADecoderV1:
 
 
 class PMAADecoderV2:
-    def __init__(self, file):
-        self.file = file
+    _file: PMAAFile
+
+    def __init__(self, file: PMAAFile):
+        self._file = file
     
     def parse(self, data):
-        stream = StreamIn(data, self.file.endianness)
+        stream = StreamIn(data, self._file.endianness)
         stream.skip(8)
 
         flags = stream.u32()
-        if flags & 1 != (self.file.endianness == "<"):
+        if flags & 1 != (self._file.endianness == "<"):
             raise ParseError("unexpected endianness flag")
-        self.file.shift_jis = bool(flags & 2)
+        self._file.shift_jis = bool(flags & 2)
         
         if stream.u32() != len(data): raise ParseError("file size is invalid")
 
-        self.file.effect_version = stream.u32()
+        self._file.effect_version = stream.u32()
         
         type_length = stream.u32()
         stream.skip(20)
         stream.pad(4)
 
-        self.file.effect_type = stream.fixed_string(type_length)
-        self.file.root = self.parse_parameter_list(stream)
+        self._file.effect_type = stream.fixed_string(type_length)
+        self._file.root = self._parse_parameter_list(stream)
 
-        self.file.align = True
-        self.file.minimize_strings = False
-        self.file.string_padding = 0
+        self._file.align = True
+        self._file.minimize_strings = False
+        self._file.string_padding = 0
     
-    def parse_parameter_list(self, stream):
+    def _parse_parameter_list(self, stream: StreamIn) -> ParameterList:
         base = stream.tell()
 
         list = ParameterList()
@@ -384,16 +420,16 @@ class PMAADecoderV2:
 
         stream.seek(base + (list_info & 0xFFFF) * 4)
         for i in range(list_info >> 16):
-            list.children.append(self.parse_parameter_list(stream))
+            list.children.append(self._parse_parameter_list(stream))
         
         stream.seek(base + (object_info & 0xFFFF) * 4)
         for i in range(object_info >> 16):
-            list.objects.append(self.parse_parameter_object(stream))
+            list.objects.append(self._parse_parameter_object(stream))
 
         stream.seek(base + 12)
         return list
     
-    def parse_parameter_object(self, stream):
+    def _parse_parameter_object(self, stream: StreamIn) -> ParameterObject:
         base = stream.tell()
 
         object = ParameterObject()
@@ -403,19 +439,19 @@ class PMAADecoderV2:
 
         stream.seek(base + (parameter_info & 0xFFFF) * 4)
         for i in range(parameter_info >> 16):
-            object.parameters.append(self.parse_parameter(stream))
+            object.parameters.append(self._parse_parameter(stream))
         
         stream.seek(base + 8)
         return object
 
-    def parse_parameter(self, stream):
+    def _parse_parameter(self, stream: StreamIn) -> Parameter:
         base = stream.tell()
 
         parameter = Parameter()
         parameter.hash = stream.u32()
 
         info = stream.u32()
-        parameter.type = info >> 24
+        parameter.type = utils.parse_enum(info >> 24, ParameterType)
 
         stream.seek(base + (info & 0xFFFFFF) * 4)
         parameter.value = parse_value(stream, parameter.type)
@@ -425,8 +461,10 @@ class PMAADecoderV2:
 
 
 class PMAAEncoderV1:
-    def save(self, file):
-        stream = StreamOut(file.endianness, file.minimize_strings, file.string_padding)
+    def save(self, file: PMAAFile) -> bytes:
+        stream = StreamOut(
+            file.endianness, file.minimize_strings, file.string_padding
+        )
         stream.u32(MAGIC_NUMBER)
         stream.u32(1)
         stream.u32(1 if file.endianness == "<" else 0)
@@ -440,32 +478,36 @@ class PMAAEncoderV1:
         stream.u32(type_length)
         stream.fixed_string(file.effect_type, type_length, False)
 
-        self.save_parameter_list(stream, file.root)
+        self._save_parameter_list(stream, file.root)
 
         stream.u32_at(12, stream.size())
         return stream.get()
 
-    def save_parameter_list(self, stream, list):
+    def _save_parameter_list(
+        self, stream: StreamOut, list: ParameterList
+    ) -> None:
         base = stream.reserve(4)
         stream.u32(list.hash)
         stream.u32(len(list.children))
         stream.u32(len(list.objects))
         for child in list.children:
-            self.save_parameter_list(stream, child)
+            self._save_parameter_list(stream, child)
         for object in list.objects:
-            self.save_parameter_object(stream, object)
+            self._save_parameter_object(stream, object)
         stream.u32_at(base, stream.tell() - base)
     
-    def save_parameter_object(self, stream, object):
+    def _save_parameter_object(
+        self, stream: StreamOut, object: ParameterObject
+    ) -> None:
         base = stream.reserve(4)
         stream.u32(len(object.parameters))
         stream.u32(object.hash)
         stream.u32(object.type_hash)
         for parameter in object.parameters:
-            self.save_parameter(stream, parameter)
+            self._save_parameter(stream, parameter)
         stream.u32_at(base, stream.tell() - base)
     
-    def save_parameter(self, stream, parameter):
+    def _save_parameter(self, stream: StreamOut, parameter: Parameter) -> None:
         base = stream.reserve(4)
         stream.u32(parameter.type)
         stream.u32(parameter.hash)
@@ -474,7 +516,7 @@ class PMAAEncoderV1:
 
 
 class PMAAEncoderV2:
-    def save(self, file):
+    def save(self, file: PMAAFile) -> bytes:
         # Generate flags
         flags = 0
         if file.endianness == "<": flags |= 1
@@ -517,7 +559,8 @@ class PMAAEncoderV2:
                     if parameter.type in string_types:
                         # Add value to string table if necessary
                         if parameter.value not in string_offsets:
-                            string_offsets[parameter.value] = string_stream.size()
+                            string_offsets[parameter.value] = \
+                                string_stream.size()
                             string_stream.string(parameter.value)
                             string_stream.align(4)
                     else:
@@ -535,10 +578,11 @@ class PMAAEncoderV2:
 
                         # If the data is not yet present, add it
                         if offset == -1:
-                            # If part of the value overlaps with the previous value,
-                            # Nintendo's tooling makes the offset point to the part
-                            # of the previous value, while still writing the whole
-                            # new value to the file. Except in the very first case.
+                            # If part of the value overlaps with the previous
+                            # value, Nintendo's tooling makes the offset point
+                            # to the part of the previous value, while still
+                            # writing the whole new value to the file. Except in
+                            # the very first case.
                             overlap = 0
                             while data[-overlap-4:] == value[:overlap+4]:
                                 overlap += 4
@@ -610,7 +654,21 @@ class PMAAEncoderV2:
         stream.write(string_stream.get())
         return stream.get()
 
+
 class PMAAFile:
+    endianness: str
+    version: int
+    shift_jis: bool
+
+    effect_version: int
+    effect_type: str
+
+    align: bool
+    minimize_strings: bool | None
+    string_padding: int | None
+
+    root: ParameterList
+
     def __init__(self):
         self.endianness = "<"
         self.version = 1
@@ -619,15 +677,14 @@ class PMAAFile:
         self.effect_version = 0
         self.effect_type = "aglenv"
 
-        # These are inconsistent quirks of
-        # Nintendo's tooling
+        # These are inconsistent quirks of Nintendo's tooling
         self.align = True
-        self.minimize_strings = False
-        self.string_padding = 0
+        self.minimize_strings = None
+        self.string_padding = None
 
         self.root = ParameterList()
 
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         if len(data) < 8:
             raise ParseError("file is too small")
         
@@ -639,14 +696,16 @@ class PMAAFile:
         
         # Determine version and parse file
         self.version = struct.unpack_from(self.endianness + "I", data, 4)[0]
-        
+
+        parser: PMAADecoderType
         if self.version == 1: parser = PMAADecoderV1(self)
         elif self.version == 2: parser = PMAADecoderV2(self)
         else:
             raise ParseError("unsupported version number")
         parser.parse(data)
     
-    def save(self):
+    def save(self) -> bytes:
+        encoder: PMAAEncoderType
         if self.version == 1: encoder = PMAAEncoderV1()
         elif self.version == 2: encoder = PMAAEncoderV2()
         else:

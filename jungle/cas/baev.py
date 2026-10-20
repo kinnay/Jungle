@@ -25,10 +25,10 @@ ParameterSizes = {
 }
 
 
+@dataclass
 class BAEVSection:
-    def __init__(self, data: bytes, alignment: int):
-        self.data = data
-        self.alignment = alignment
+    data: bytes
+    alignment: int
 
 
 @dataclass

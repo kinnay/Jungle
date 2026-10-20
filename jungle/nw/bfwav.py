@@ -1,18 +1,23 @@
 
+from dataclasses import dataclass, field
+
 from jungle.errors import ParseError, SaveError
 from jungle.nw import sound
-from jungle import streams
+from jungle.streams import StreamIn, StreamOut
+from jungle import utils
+
+import enum
 
 
-class SampleFormat:
-    PCM_8 = 0
-    PCM_16 = 1
+class SampleFormat(enum.IntEnum):
+    PCM8 = 0
+    PCM16 = 1
     ADPCM = 2
 
 
-def calc_channel_size(format, samples):
-    if format == SampleFormat.PCM_8: return samples
-    if format == SampleFormat.PCM_16: return samples * 2
+def calc_channel_size(format: SampleFormat, samples: int) -> int:
+    if format == SampleFormat.PCM8: return samples
+    if format == SampleFormat.PCM16: return samples * 2
 
     # ADPCM
     size = (samples + 13) // 14
@@ -20,65 +25,79 @@ def calc_channel_size(format, samples):
     return size + 1
 
 
+@dataclass
 class ADPCMContext:
-    def __init__(self):
-        self.header = 0
-        self.hist1 = 0
-        self.hist2 = 0
-    
-    def parse(self, stream):
+    header: int = 0
+    hist1: int = 0
+    hist2: int = 0
+
+    def parse(self, stream: StreamIn) -> None:
         self.header = stream.u16()
         self.hist1 = stream.s16()
         self.hist2 = stream.s16()
     
-    def save(self, stream):
+    def save(self, stream: StreamOut) -> None:
         stream.u16(self.header)
         stream.s16(self.hist1)
         stream.s16(self.hist2)
 
 
+@dataclass
 class ADPCMInfo:
-    def __init__(self):
-        self.coefs = [0] * 16
-        self.main_context = ADPCMContext()
-        self.loop_context = ADPCMContext()
+    coefs: list[int] = field(default_factory=lambda: [0] * 16)
+    main_context: ADPCMContext = field(default_factory=ADPCMContext)
+    loop_context: ADPCMContext = field(default_factory=ADPCMContext)
     
-    def parse(self, stream):
+    def parse(self, stream: StreamIn) -> None:
         self.coefs = stream.repeat(stream.s16, 16)
         self.main_context.parse(stream)
         self.loop_context.parse(stream)
         stream.pad(2)
     
-    def save(self, stream):
+    def save(self, stream: StreamOut) -> None:
         stream.repeat(self.coefs, stream.s16)
         self.main_context.save(stream)
         self.loop_context.save(stream)
         stream.pad(2)
 
 
+@dataclass
 class ChannelInfo:
-    def __init__(self):
-        self.data_ref = sound.SectionReference()
-        self.adpcm_ref = sound.SectionReference()
+    data_ref: sound.SectionReference = \
+        field(default_factory=sound.SectionReference)
+    adpcm_ref: sound.SectionReference = \
+        field(default_factory=sound.SectionReference)
     
-    def parse(self, stream):
+    def parse(self, stream: StreamIn) -> None:
         self.data_ref.parse(stream)
         self.adpcm_ref.parse(stream)
         stream.pad(4)
     
-    def save(self, stream):
+    def save(self, stream: StreamOut) -> None:
         self.data_ref.save(stream)
         self.adpcm_ref.save(stream)
         stream.pad(4)
 
 
+@dataclass
 class BFWAVChannel:
-    def __init__(self):
-        self.data = b""
-        self.adpcm_info = None
+    data: bytes = b""
+    adpcm_info: ADPCMInfo | None = None
 
 
 class BFWAVFile:
+    endianness: str
+    version: int
+
+    sample_format: SampleFormat
+    sample_rate: int
+
+    is_looped: bool
+    loop_start: int
+    num_samples: int
+    adjusted_loop_start: int
+    channels: list[BFWAVChannel]
+
     def __init__(self):
         self.endianness = "<"
         self.version = 0x10100
@@ -92,7 +111,7 @@ class BFWAVFile:
         self.adjusted_loop_start = 0
         self.channels = []
     
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Parse header and blocks
         file = sound.SoundFile()
         file.parse(data)
@@ -108,17 +127,17 @@ class BFWAVFile:
             raise ParseError("unsupported version number")
         
         # Parse the DATA block
-        stream = streams.StreamIn(file.blocks[0x7001], self.endianness)
+        stream = StreamIn(file.blocks[0x7001], self.endianness)
         if stream.ascii(4) != "DATA": raise ParseError("DATA block has invalid identifier")
         if stream.u32() != stream.size(): raise ParseError("DATA block has invalid size")
         data = stream.readall()
 
         # Parse the INFO block
-        stream = streams.StreamIn(file.blocks[0x7000], self.endianness)
+        stream = StreamIn(file.blocks[0x7000], self.endianness)
         if stream.ascii(4) != "INFO": raise ParseError("INFO block has invalid identifier")
         if stream.u32() != stream.size(): raise ParseError("INFO block has invalid size")
         
-        self.sample_format = stream.u8()
+        self.sample_format = utils.parse_enum(stream.u8(), SampleFormat)
         self.is_looped = stream.bool()
         stream.pad(2)
 
@@ -155,11 +174,11 @@ class BFWAVFile:
                 channel.adpcm_info.parse(stream)
             self.channels.append(channel)
     
-    def save(self):
+    def save(self) -> bytes:
         if self.version not in [0x10100, 0x10200]:
             raise SaveError("unsupported version number")
         
-        info_stream = streams.StreamOut(self.endianness)
+        info_stream = StreamOut(self.endianness)
         info_stream.ascii("INFO")
         info_stream.skip(4) # Block size
         info_stream.u8(self.sample_format)
@@ -174,15 +193,15 @@ class BFWAVFile:
             info_stream.pad(4)
         info_stream.u32(len(self.channels))
 
-        data_stream = streams.StreamOut(self.endianness)
+        data_stream = StreamOut(self.endianness)
         data_stream.ascii("DATA")
         data_stream.skip(4) # Block size
 
         channel_base = 4 + len(self.channels) * 8
         adpcm_base = channel_base + len(self.channels) * 0x14
 
-        channel_stream = streams.StreamOut(self.endianness)
-        adpcm_stream = streams.StreamOut(self.endianness)
+        channel_stream = StreamOut(self.endianness)
+        adpcm_stream = StreamOut(self.endianness)
         for channel in self.channels:
             channel_offset = channel_base + channel_stream.tell()
 

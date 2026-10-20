@@ -1,23 +1,28 @@
 
-class GX2AAMode:
-    MODE1X = 0
-    MODE2X = 1
-    MODE4X = 2
+from dataclasses import dataclass, field
+
+import enum
 
 
-class GX2SurfaceDim:
-    TEXTURE_1D = 0
-    TEXTURE_2D = 1
-    TEXTURE_3D = 2
-    TEXTURE_CUBE = 3
-    TEXTURE_1D_ARRAY = 4
-    TEXTURE_2D_ARRAY = 5
-    TEXTURE_2D_MSAA = 6
-    TEXTURE_2D_MSAA_ARRAY = 7
+class GX2AAMode(enum.IntEnum):
+    Mode1X = 0
+    Mode2X = 1
+    Mode4X = 2
 
 
-class GX2SurfaceFormat:
-    INVALID = 0
+class GX2SurfaceDim(enum.IntEnum):
+    Texture1D = 0
+    Texture2D = 1
+    Texture3D = 2
+    TextureCube = 3
+    Texture1DArray = 4
+    Texture2DArray = 5
+    Texture2DMSAA = 6
+    Texture2DMSAAArray = 7
+
+
+class GX2SurfaceFormat(enum.IntEnum):
+    Invalid = 0
     R8 = 1
     R4_G4 = 2
     R16 = 5
@@ -51,7 +56,7 @@ class GX2SurfaceFormat:
     NV12 = 129
 
 
-class GX2SurfaceType:
+class GX2SurfaceType(enum.IntEnum):
   UNORM = 0
   UINT = 1
   SNORM = 2
@@ -60,60 +65,60 @@ class GX2SurfaceType:
   FLOAT = 8
 
 
-class GX2SurfaceUse:
-    NONE = 0
-    TEXTURE = 1
-    COLOR_BUFFER = 2
-    DEPTH_BUFFER = 4
-    SCAN_BUFFER = 8
+class GX2SurfaceUse(enum.IntFlag):
+    Texture = 1
+    ColorBuffer = 2
+    DepthBuffer = 4
+    ScanBuffer = 8
     TV = 1 << 31
 
 
-class GX2TileMode:
-    DEFAULT = 0
-    LINEAR_ALIGNED = 1
-    TILED_1D_THIN1 = 2
-    TILED_1D_THICK = 3
-    TILED_2D_THIN1 = 4
-    TILED_2D_THIN2 = 5
-    TILED_2D_THIN4 = 6
-    TILED_2D_THICK = 7
-    TILED_2B_THIN1 = 8
-    TILED_2B_THIN2 = 9
-    TILED_2B_THIN4 = 10
-    TILED_2B_THICK = 11
-    TILED_3D_THIN1 = 12
-    TILED_3D_THICK = 13
-    TILED_3B_THIN1 = 14
-    TILED_3B_THICK = 15
-    LINEAR_SPECIAL = 16
+class GX2TileMode(enum.IntEnum):
+    Default = 0
+    LinearAligned = 1
+    Tiled1DThin1 = 2
+    Tiled1DThick = 3
+    Tiled2DThin1 = 4
+    Tiled2DThin2 = 5
+    Tiled2DThin4 = 6
+    Tiled2DThick = 7
+    Tiled2BThin1 = 8
+    Tiled2BThin2 = 9
+    Tiled2BThin4 = 10
+    Tiled2BThick = 11
+    Tiled3DThin1 = 12
+    Tiled3DThick = 13
+    Tiled3BThin1 = 14
+    Tiled3BThick = 15
+    LinearSpecial = 16
 
 
+@dataclass
 class GX2Surface:
-    def __init__(self):
-        self.dim = GX2SurfaceDim.TEXTURE_2D
-        self.width = 0
-        self.height = 0
-        self.depth = 0
-        self.mip_levels = 0
-        self.format = GX2SurfaceType.UNORM | GX2SurfaceFormat.R8_G8_B8_A8
-        self.aa_mode = GX2AAMode.MODE1X
-        self.use = GX2SurfaceUse.TEXTURE
-        self.image = b""
-        self.mipmaps = b""
-        self.tile_mode = GX2TileMode.LINEAR_SPECIAL
-        self.swizzle = 0
-        self.alignment = 0
-        self.pitch = 0
-        self.mip_level_offset = [0] * 13
+    dim: GX2SurfaceDim = GX2SurfaceDim.Texture2D
+    width: int = 0
+    height: int = 0
+    depth: int = 0
+    mip_levels: int = 0
+    type: GX2SurfaceType = GX2SurfaceType.UNORM
+    format: GX2SurfaceFormat = GX2SurfaceFormat.R8_G8_B8_A8
+    aa_mode: GX2AAMode = GX2AAMode.Mode1X
+    use: GX2SurfaceUse = GX2SurfaceUse.Texture
+    image: bytes = b""
+    mipmaps: bytes = b""
+    tile_mode: GX2TileMode = GX2TileMode.LinearSpecial
+    swizzle: int = 0
+    alignment: int = 0
+    pitch: int = 0
+    mip_level_offset: list[int] = field(default_factory=lambda: [0] * 13)
 
 
+@dataclass
 class GX2Texture:
-    def __init__(self):
-        self.surface = GX2Surface()
-        self.view_first_mip = 0
-        self.view_num_mips = 0
-        self.view_first_slice = 0
-        self.view_num_slices = 0
-        self.comp_map = 0
-        self.regs = [0] * 5
+    surface: GX2Surface = field(default_factory=GX2Surface)
+    view_first_mip: int = 0
+    view_num_mips: int = 0
+    view_first_slice: int = 0
+    view_num_slices: int = 0
+    comp_map: int = 0
+    regs: list[int] = field(default_factory=lambda: [0] * 5)

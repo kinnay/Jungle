@@ -20,27 +20,27 @@ def create_python_object(node: BYAMLNode) -> BYAMLValue:
 
 
 class BYAMLNodeType(enum.IntEnum):
-    HASHMAP = 0x20
+    Hashmap = 0x20
 
-    STRING = 0xA0
-    BINARY = 0xA1
-    BINARY_ANNOTATED = 0xA2
+    String = 0xA0
+    Binary = 0xA1
+    AlignedBinary = 0xA2
 
-    ARRAY = 0xC0
-    DICT = 0xC1
+    Array = 0xC0
+    Dict = 0xC1
 
-    STRING_TABLE = 0xC2
-    BINARY_TABLE = 0xC3
+    StringTable = 0xC2
+    BinaryTable = 0xC3
 
-    BOOL = 0xD0
-    INT = 0xD1
-    FLOAT = 0xD2
-    UINT = 0xD3
-    INT64 = 0xD4
-    UINT64 = 0xD5
-    DOUBLE = 0xD6
+    Bool = 0xD0
+    Int = 0xD1
+    Float = 0xD2
+    Uint = 0xD3
+    Int64 = 0xD4
+    Uint64 = 0xD5
+    Double = 0xD6
 
-    NULL = 0xFF
+    Null = 0xFF
 
 
 class BYAMLNode:
@@ -59,7 +59,7 @@ class BYAMLHashmap(BYAMLNode):
     value: dict[int, BYAMLNode] = field(default_factory=dict)
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.HASHMAP
+        return BYAMLNodeType.Hashmap
 
     def minimum_version(self) -> int:
         """This is either 6 or 7, not sure."""
@@ -71,7 +71,7 @@ class BYAMLString(BYAMLNode):
     value: str = ""
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.STRING
+        return BYAMLNodeType.String
 
 
 @dataclass
@@ -79,7 +79,7 @@ class BYAMLBinary(BYAMLNode):
     value: bytes = b""
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.BINARY
+        return BYAMLNodeType.Binary
 
     def minimum_version(self) -> int:
         """
@@ -90,12 +90,12 @@ class BYAMLBinary(BYAMLNode):
 
 
 @dataclass
-class BYAMLBinaryAnnotated(BYAMLNode):
+class BYAMLAlignedBinary(BYAMLNode):
     value: bytes = b""
-    annotation: int = 0
+    alignment: int = 0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.BINARY_ANNOTATED
+        return BYAMLNodeType.AlignedBinary
 
     def minimum_version(self) -> int:
         return 5
@@ -106,7 +106,7 @@ class BYAMLArray(BYAMLNode):
     value: list[BYAMLNode] = field(default_factory=list)
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.ARRAY
+        return BYAMLNodeType.Array
 
 
 @dataclass(eq=False)
@@ -114,7 +114,7 @@ class BYAMLDict(BYAMLNode):
     value: dict[str, BYAMLNode] = field(default_factory=dict)
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.DICT
+        return BYAMLNodeType.Dict
 
 
 @dataclass
@@ -122,7 +122,7 @@ class BYAMLBool(BYAMLNode):
     value: bool = False
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.BOOL
+        return BYAMLNodeType.Bool
 
 
 @dataclass
@@ -130,7 +130,7 @@ class BYAMLInt(BYAMLNode):
     value: int = 0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.INT
+        return BYAMLNodeType.Int
 
 
 @dataclass
@@ -138,7 +138,7 @@ class BYAMLFloat(BYAMLNode):
     value: float = .0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.FLOAT
+        return BYAMLNodeType.Float
 
 
 @dataclass
@@ -146,7 +146,7 @@ class BYAMLUint(BYAMLNode):
     value: int = 0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.UINT
+        return BYAMLNodeType.Uint
 
     def minimum_version(self) -> int:
         return 2
@@ -157,7 +157,7 @@ class BYAMLInt64(BYAMLNode):
     value: int = 0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.INT64
+        return BYAMLNodeType.Int64
 
     def minimum_version(self) -> int:
         return 3
@@ -168,7 +168,7 @@ class BYAMLUint64(BYAMLNode):
     value: int = 0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.UINT64
+        return BYAMLNodeType.Uint64
 
     def minimum_version(self) -> int:
         return 3
@@ -179,7 +179,7 @@ class BYAMLDouble(BYAMLNode):
     value: float = .0
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.DOUBLE
+        return BYAMLNodeType.Double
 
     def minimum_version(self) -> int:
         return 3
@@ -190,7 +190,7 @@ class BYAMLNone(BYAMLNode):
     value: None = None
 
     def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.NULL
+        return BYAMLNodeType.Null
 
 
 type BYAMLRoot = BYAMLArray | BYAMLDict | BYAMLHashmap
@@ -241,8 +241,8 @@ class BYAMLConverter:
         )):
             return node.value
 
-        elif isinstance(node, BYAMLBinaryAnnotated):
-            return node.value, node.annotation
+        elif isinstance(node, BYAMLAlignedBinary):
+            return node.value, node.alignment
 
         elif isinstance(node, BYAMLArray):
             if node in self._arrays:
@@ -332,7 +332,7 @@ class BYAMLParser:
         # The binary table only appears in Mario Kart 8
         binary_table_offs = stream.u32()
         if binary_table_offs == 0 or \
-           stream.u8_at(binary_table_offs) == BYAMLNodeType.BINARY_TABLE:
+           stream.u8_at(binary_table_offs) == BYAMLNodeType.BinaryTable:
             self._file.has_binary_table = True
             root_node_offs = stream.u32()
         else:
@@ -352,30 +352,30 @@ class BYAMLParser:
 
     def _parse_root_node(self, stream: StreamIn) -> BYAMLRoot:
         type = stream.peek(1)[0]
-        if type == BYAMLNodeType.ARRAY: return self._parse_array(stream)
-        elif type == BYAMLNodeType.DICT: return self._parse_dictionary(stream)
-        elif type == BYAMLNodeType.HASHMAP: return self._parse_hashmap(stream)
+        if type == BYAMLNodeType.Array: return self._parse_array(stream)
+        elif type == BYAMLNodeType.Dict: return self._parse_dictionary(stream)
+        elif type == BYAMLNodeType.Hashmap: return self._parse_hashmap(stream)
         else:
             raise ParseError("root node must be an array or dictionary")
     
     def _parse_node(self, stream: StreamIn, type: int) -> BYAMLNode:
-        if type == BYAMLNodeType.ARRAY:
+        if type == BYAMLNodeType.Array:
             with stream.jump(stream.u32()):
                 return self._parse_array(stream)
-        elif type == BYAMLNodeType.DICT:
+        elif type == BYAMLNodeType.Dict:
             with stream.jump(stream.u32()):
                 return self._parse_dictionary(stream)
         else:
             return self._parse_scalar(stream, type)
     
     def _parse_scalar(self, stream: StreamIn, type: int) -> BYAMLNode:
-        if type == BYAMLNodeType.STRING:
+        if type == BYAMLNodeType.String:
             index = stream.u32()
             if index < len(self._string_table):
                 return BYAMLString(self._string_table[index])
             raise ParseError("string index out of range")
         
-        elif type == BYAMLNodeType.BINARY:
+        elif type == BYAMLNodeType.Binary:
             if self._file.has_binary_table:
                 index = stream.u32()
                 if index < len(self._binary_table):
@@ -385,33 +385,33 @@ class BYAMLParser:
                 with stream.jump(stream.u32()):
                     return BYAMLBinary(stream.read(stream.u32()))
 
-        elif type == BYAMLNodeType.BINARY_ANNOTATED:
+        elif type == BYAMLNodeType.AlignedBinary:
             with stream.jump(stream.u32()):
                 size = stream.u32()
-                annotation = stream.u32()
+                alignment = stream.u32()
                 data = stream.read(size)
-                return BYAMLBinaryAnnotated(data, annotation)
+                return BYAMLAlignedBinary(data, alignment)
         
-        elif type == BYAMLNodeType.BOOL: return BYAMLBool(bool(stream.u32()))
-        elif type == BYAMLNodeType.INT: return BYAMLInt(stream.s32())
-        elif type == BYAMLNodeType.FLOAT: return BYAMLFloat(stream.float())
-        elif type == BYAMLNodeType.UINT: return BYAMLUint(stream.u32())
+        elif type == BYAMLNodeType.Bool: return BYAMLBool(bool(stream.u32()))
+        elif type == BYAMLNodeType.Int: return BYAMLInt(stream.s32())
+        elif type == BYAMLNodeType.Float: return BYAMLFloat(stream.float())
+        elif type == BYAMLNodeType.Uint: return BYAMLUint(stream.u32())
 
-        elif type == BYAMLNodeType.INT64:
+        elif type == BYAMLNodeType.Int64:
             return BYAMLInt64(stream.s64_at(stream.u32()))
-        elif type == BYAMLNodeType.UINT64:
+        elif type == BYAMLNodeType.Uint64:
             return BYAMLUint64(stream.u64_at(stream.u32()))
-        elif type == BYAMLNodeType.DOUBLE:
+        elif type == BYAMLNodeType.Double:
             return BYAMLDouble(stream.double_at(stream.u32()))
 
-        elif type == BYAMLNodeType.NULL:
+        elif type == BYAMLNodeType.Null:
             stream.pad(4)
             return BYAMLNone()
 
         raise ParseError(f"unsupported node type: 0x{type:X}")
     
     def _parse_array(self, stream: StreamIn) -> BYAMLArray:
-        if stream.u8() != BYAMLNodeType.ARRAY:
+        if stream.u8() != BYAMLNodeType.Array:
             raise ParseError("expected an array node")
         
         pos = stream.tell()
@@ -436,7 +436,7 @@ class BYAMLParser:
         that we do not enter an infinite loop when the file contains a cycle.
         """
 
-        if stream.u8() != BYAMLNodeType.DICT:
+        if stream.u8() != BYAMLNodeType.Dict:
             raise ParseError("expected a dictionary node")
         
         pos = stream.tell()
@@ -462,7 +462,7 @@ class BYAMLParser:
         return self._dict_nodes[pos]
 
     def _parse_hashmap(self, stream: StreamIn) -> BYAMLHashmap:
-        if stream.u8() != BYAMLNodeType.HASHMAP:
+        if stream.u8() != BYAMLNodeType.Hashmap:
             raise ParseError("expected a hashmap node")
 
         pos = stream.tell()
@@ -487,7 +487,7 @@ class BYAMLParser:
             return []
         
         stream.seek(base)
-        if stream.u8() != BYAMLNodeType.STRING_TABLE:
+        if stream.u8() != BYAMLNodeType.StringTable:
             raise ParseError("expected a string table")
         
         count = stream.u24()
@@ -504,7 +504,7 @@ class BYAMLParser:
             return []
         
         stream.seek(base)
-        if stream.u8() != BYAMLNodeType.BINARY_TABLE:
+        if stream.u8() != BYAMLNodeType.BinaryTable:
             raise ParseError("expected a binary table")
         
         count = stream.u24()
@@ -675,7 +675,7 @@ class BYAMLSaver:
             strings += string.encode() + b"\0"
             addresses.append(offset + len(strings))
 
-        stream.u8(BYAMLNodeType.STRING_TABLE)
+        stream.u8(BYAMLNodeType.StringTable)
         stream.u24(len(table))
         stream.repeat(addresses, stream.u32)
         stream.write(strings)
@@ -692,7 +692,7 @@ class BYAMLSaver:
             binaries += binary
             addresses.append(offset + len(binaries))
         
-        stream.u8(BYAMLNodeType.BINARY_TABLE)
+        stream.u8(BYAMLNodeType.BinaryTable)
         stream.u24(len(table))
         stream.repeat(addresses, stream.u32)
         stream.write(binaries)
@@ -712,11 +712,11 @@ class BYAMLSaver:
                     stream.write(node.value)
                 self._data_offset += 4 + len(node.value)
 
-        elif isinstance(node, BYAMLBinaryAnnotated):
+        elif isinstance(node, BYAMLAlignedBinary):
             stream.u32(self._data_offset)
             with stream.jump(self._data_offset):
                 stream.u32(len(node.value))
-                stream.u32(node.annotation)
+                stream.u32(node.alignment)
                 stream.write(node.value)
             self._data_offset += 8 + len(node.value)
         
@@ -778,7 +778,7 @@ class BYAMLSaver:
                     self._binaries.add(node.value)
                 else:
                     self._data_size += 4 + len(node.value)
-            elif isinstance(node, BYAMLBinaryAnnotated):
+            elif isinstance(node, BYAMLAlignedBinary):
                 self._data_size += 8 + len(node.value)
             elif isinstance(node, (BYAMLInt64, BYAMLUint64, BYAMLDouble)):
                 self._data_size += 8

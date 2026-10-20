@@ -1,40 +1,47 @@
 
+from dataclasses import dataclass
 from jungle.errors import ParseError
-from jungle import streams
+from jungle.streams import StreamIn, StreamOut
+
 import struct
 
 
+@dataclass
 class SectionReference:
-    def __init__(self):
-        self.type = 0
-        self.offset = -1
-    
-    def valid(self):
+    type: int = 0
+    offset: int = -1
+
+    def valid(self) -> bool:
         return self.type != 0 and self.offset != -1
 
-    def check(self, type):
+    def check(self, type: int) -> None:
         if self.type != type:
             raise ParseError("section reference has invalid id")
     
-    def parse(self, stream):
+    def parse(self, stream: StreamIn) -> None:
         self.type = stream.u16()
         stream.pad(2)
         self.offset = stream.s32()
     
-    def save(self, stream):
+    def save(self, stream: StreamOut) -> None:
         stream.u16(self.type)
         stream.pad(2)
         stream.s32(self.offset)
 
 
 class SoundFile:
+    magic: str
+    endianness: str
+    version: int
+    blocks: dict[int, bytes]
+
     def __init__(self):
         self.magic = "XXXX"
         self.endianness = "<"
         self.version = 0
         self.blocks = {}
         
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Determine endianness
         if len(data) < 6:
             raise ParseError("file is too small")
@@ -43,7 +50,7 @@ class SoundFile:
         self.endianness = ">" if bom == 0xFEFF else "<"
 
         # Parse file
-        stream = streams.StreamIn(data, self.endianness)
+        stream = StreamIn(data, self.endianness)
         self.magic = stream.ascii(4)
 
         if stream.u16() != 0xFEFF:
@@ -65,7 +72,7 @@ class SoundFile:
             size = stream.u32()
             self.blocks[type] = data[offset:offset+size]
     
-    def save(self):
+    def save(self) -> bytes:
         header_size = 0x14 + len(self.blocks) * 0xC
         header_size = (header_size + 31) & ~31
 
@@ -74,7 +81,7 @@ class SoundFile:
             file_size = (file_size + 31) & ~31
             file_size += len(data)
 
-        stream = streams.StreamOut(self.endianness)
+        stream = StreamOut(self.endianness)
         stream.ascii(self.magic)
         stream.u16(0xFEFF)
         stream.u16(header_size)
