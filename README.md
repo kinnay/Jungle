@@ -6,6 +6,8 @@ This package can be installed with `pip3 install jungle-package`.
 
 Python 3.13 or later is required.
 
+**Note:** this package does not have a stable interface. It is recommended to pin its version.
+
 ## Testing
 Every parser that is implemented in this package must be sound and complete. This means that, given an arbitrary file from a Nintendo game, decoding and reencoding that file must always produce the original file again.
 
