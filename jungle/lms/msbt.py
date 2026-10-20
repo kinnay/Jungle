@@ -130,7 +130,10 @@ class MSBTFile:
                 tag = Tag(group_id, tag_id, parameters)
                 content.append(tag)
             else:
-                text += chr(char)
+                try:
+                    text += chr(char)
+                except ValueError:
+                    raise ParseError("encountered an invalid character")
 
     def save(self) -> bytes:
         if self.version != 3:

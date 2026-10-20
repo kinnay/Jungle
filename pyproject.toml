@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jungle-package"
-version = "0.0.2"
+version = "0.0.4"
 requires-python = ">= 3.13"
 authors = [
     {name = "Yannik Marchand", email = "ymarchand@me.com"}
