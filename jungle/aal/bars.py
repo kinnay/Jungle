@@ -1,23 +1,28 @@
 
+from dataclasses import dataclass
 from jungle.errors import ParseError, SaveError
-from jungle import streams
+from jungle.streams import StreamIn, StreamOut
 
 import struct
 
 
+@dataclass
 class Asset:
-    def __init__(self):
-        self.metadata = b""
-        self.data = None
+    metadata: bytes = b""
+    data: bytes | None = None
 
 
 class BARSFile:
+    version: int
+    endianness: str
+    assets: dict[int, Asset]
+
     def __init__(self):
         self.version = 0x101
         self.endianness = "<"
         self.assets = {}
     
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Determine endianness
         if len(data) < 10:
             raise ParseError("file is too small")
@@ -26,10 +31,13 @@ class BARSFile:
         self.endianness = ">" if bom == 0xFEFF else "<"
 
         # Parse file
-        stream = streams.StreamIn(data, self.endianness)
-        if stream.ascii(4) != "BARS": raise ParseError("magic number is invalid")
-        if stream.u32() != len(data): raise ParseError("file size is invalid")
-        if stream.u16() != 0xFEFF: raise ParseError("BOM is invalid")
+        stream = StreamIn(data, self.endianness)
+        if stream.ascii(4) != "BARS":
+            raise ParseError("magic number is invalid")
+        if stream.u32() != len(data):
+            raise ParseError("file size is invalid")
+        if stream.u16() != 0xFEFF:
+            raise ParseError("BOM is invalid")
 
         self.version = stream.u16()
         if self.version != 0x101:
@@ -45,17 +53,17 @@ class BARSFile:
             data_offset = stream.s32()
 
             metadata_size = stream.u32_at(metadata_offset + 8)
-            metadata = data[metadata_offset:metadata_offset+metadata_size]
+            metadata = data[metadata_offset : metadata_offset + metadata_size]
 
             asset = Asset()
             asset.metadata = metadata
             if data_offset != -1:
                 data_size = stream.u32_at(data_offset + 12)
-                asset.data = data[data_offset:data_offset+data_size]
+                asset.data = data[data_offset : data_offset + data_size]
             
             self.assets[hashes[i]] = asset
     
-    def save(self):
+    def save(self) -> bytes:
         if self.version != 0x101:
             raise SaveError("unsupported version number")
 
@@ -74,7 +82,7 @@ class BARSFile:
             else:
                 data_offsets[hash] = -1
 
-        stream = streams.StreamOut(self.endianness)
+        stream = StreamOut(self.endianness)
         stream.ascii("BARS")
         stream.u32(offset)
         stream.u16(0xFEFF)

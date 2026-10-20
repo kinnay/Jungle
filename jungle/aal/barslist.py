@@ -6,6 +6,12 @@ import struct
 
 
 class BARSLISTFile:
+    version: int
+    endianness: str
+
+    name: str
+    resources: list[str]
+
     def __init__(self):
         self.version = 1
         self.endianness = "<"
@@ -13,7 +19,7 @@ class BARSLISTFile:
         self.name = ""
         self.resources = []
     
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Determine endianness
         if len(data) < 6:
             raise ParseError("file is too small")
@@ -23,8 +29,10 @@ class BARSLISTFile:
 
         # Parse file
         stream = streams.StreamIn(data, self.endianness)
-        if stream.ascii(4) != "ARSL": raise ParseError("magic number is invalid")
-        if stream.u16() != 0xFEFF: raise ParseError("BOM is invalid")
+        if stream.ascii(4) != "ARSL":
+            raise ParseError("magic number is invalid")
+        if stream.u16() != 0xFEFF:
+            raise ParseError("BOM is invalid")
 
         self.version = stream.u16()
         if self.version != 1:
@@ -39,7 +47,7 @@ class BARSLISTFile:
         for offset in resource_offsets:
             self.resources.append(stream.string_at(base + offset))
     
-    def save(self):
+    def save(self) -> bytes:
         if self.version != 1:
             raise SaveError("unsupported version number")
 

@@ -1,64 +1,73 @@
 
+from dataclasses import dataclass
 from jungle.errors import ParseError, SaveError
-from jungle import streams
+from jungle.streams import StreamIn, StreamOut
+from jungle import utils
 
+import enum
 import struct
 
 
-class AssetType:
-    WAVE = 0
-    STREAM = 1
+class AssetType(enum.IntEnum):
+    Wave = 0
+    Stream = 1
 
 
-class Flags:
-    LOOPED = 4
+class Flags(enum.IntFlag):
+    Stream = 1
+    Prefetch = 2
+    Looped = 4
+    Opus = 16
 
 
+@dataclass
 class StreamTrack:
-    def __init__(self):
-        self.channels = 0
-        self.volume = 1.0
+    channels: int = 0
+    volume: float = 1.0
     
-    def parse(self, stream):
+    def parse(self, stream: StreamIn) -> None:
         self.channels = stream.u32()
         self.volume = stream.float()
     
-    def save(self, stream):
+    def save(self, stream: StreamOut) -> None:
         stream.u32(self.channels)
         stream.float(self.volume)
 
 
+@dataclass
 class MarkerInfo:
-    def __init__(self):
-        self.id = 0
-        self.name = ""
-        self.start = 0
-        self.length = 0
+    id: int = 0
+    name: str = ""
+    start: int = 0
+    length: int = 0
 
 
+@dataclass
 class ExtEntry:
-    def __init__(self):
-        self.name = ""
-        self.value = 0
+    name: str = ""
+    value: float = 0.0
 
 
 class StringTableIn:
-    """A string table that works around a bug from Nintendo's tooling.
+    """
+    A string table that works around a bug from Nintendo's tooling.
 
     Nintendo's files have wrong string table offsets if a string
     contains non-ascii characters. This string table works around
     that behavior.
     """
 
-    def __init__(self):
-        self.strings = {}
-    
-    def get(self, offset):
-        if offset not in self.strings:
-            raise ParseError("string table offset is invalid")
-        return self.strings[offset]
+    _strings: dict[int, str]
 
-    def parse(self, stream):
+    def __init__(self):
+        self._strings = {}
+    
+    def get(self, offset: int) -> str:
+        if offset not in self._strings:
+            raise ParseError("string table offset is invalid")
+        return self._strings[offset]
+
+    def parse(self, stream: StreamIn) -> None:
         if stream.ascii(4) != "STRG":
             raise ParseError("STRG section has invalid identifier")
         size = stream.u32()
@@ -67,65 +76,89 @@ class StringTableIn:
         end = stream.tell() + size
         while stream.tell() < end:
             string = stream.string()
-            self.strings[offset] = string
+            self._strings[offset] = string
             offset += len(string) + 1
 
 
 class StringTableOut:
-    """A string table that mimics a bug from Nintendo's tooling.
+    """
+    A string table that mimics a bug from Nintendo's tooling.
 
     Nintendo's files have wrong string table offsets if a string
     contains non-ascii characters. This string table emulates
     that behavior.
     """
 
+    _strings: dict[str, int]
+    _offset: int = 0
+    _bytes: int = 0
+
     def __init__(self):
-        self.strings = {}
-        self.offset = 0
-        self.bytes = 0
+        self._strings = {}
+        self._offset = 0
+        self._bytes = 0
 
-    def add(self, string):
-        if string in self.strings:
-            return self.strings[string]
+    def add(self, string: str) -> int:
+        if string in self._strings:
+            return self._strings[string]
 
-        offset = self.offset
-        self.strings[string] = offset
-        self.offset += len(string) + 1
-        self.bytes += len(string.encode()) + 1
+        offset = self._offset
+        self._strings[string] = offset
+        self._offset += len(string) + 1
+        self._bytes += len(string.encode()) + 1
         return offset
 
-    def size(self):
-        return 8 + self.bytes
+    def size(self) -> int:
+        return 8 + self._bytes
     
-    def save(self, stream):
+    def save(self, stream: StreamOut) -> None:
         stream.ascii("STRG")
-        stream.u32(self.bytes)
-        for string in self.strings:
+        stream.u32(self._bytes)
+        for string in self._strings:
             stream.string(string)
 
 
 class BAMETAFile:
+    version: int
+    endianness: str
+
+    name: str
+    num_output_samples: int
+    type: AssetType
+    num_channels: int
+    flags: Flags
+    amplitude_rms: float
+    sample_rate: int
+    loop_start: int
+    num_samples: int
+    loudness: float
+    stream_tracks: list[StreamTrack]
+    amplitude_peak: float
+
+    markers: list[MarkerInfo]
+    ext: list[ExtEntry]
+
     def __init__(self):
         self.version = 0x100
         self.endianness = "<"
 
         self.name = ""
         self.num_output_samples = 0
-        self.type = AssetType.WAVE
+        self.type = AssetType.Wave
         self.num_channels = 1
-        self.flags = 0
-        self.unk2 = 0
+        self.flags = Flags(0)
+        self.amplitude_rms = 0.0
         self.sample_rate = 32000
         self.loop_start = 0
         self.num_samples = 0
-        self.decibel = 0.0
+        self.loudness = 0.0
         self.stream_tracks = []
         self.amplitude_peak = 1.0
 
         self.markers = []
         self.ext = []
 
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         # Determine endianness
         if len(data) < 6:
             raise ParseError("file is too small")
@@ -134,9 +167,11 @@ class BAMETAFile:
         self.endianness = ">" if bom == 0xFEFF else "<"
 
         # Parse file
-        stream = streams.StreamIn(data, self.endianness)
-        if stream.ascii(4) != "AMTA": raise ParseError("magic number is invalid")
-        if stream.u16() != 0xFEFF: raise ParseError("BOM is invalid")
+        stream = StreamIn(data, self.endianness)
+        if stream.ascii(4) != "AMTA":
+            raise ParseError("magic number is invalid")
+        if stream.u16() != 0xFEFF:
+            raise ParseError("BOM is invalid")
 
         self.version = stream.u16()
         if self.version not in [0x100, 0x300, 0x400]:
@@ -162,15 +197,15 @@ class BAMETAFile:
 
         self.name = string_table.get(stream.u32())
         self.num_output_samples = stream.u32()
-        self.type = stream.u8()
+        self.type = utils.parse_enum(stream.u8(), AssetType)
         self.num_channels = stream.u8()
         num_tracks = stream.u8()
-        self.flags = stream.u8()
-        self.unk2 = stream.float()
+        self.flags = utils.parse_flags(stream.u8(), Flags)
+        self.amplitude_rms = stream.float()
         self.sample_rate = stream.u32()
         self.loop_start = stream.u32()
         self.num_samples = stream.u32()
-        self.decibel = stream.float()
+        self.loudness = stream.float()
 
         self.stream_tracks = []
         for i in range(8):
@@ -210,13 +245,13 @@ class BAMETAFile:
                 entry.value = stream.float()
                 self.ext.append(entry)
     
-    def save(self):
+    def save(self) -> bytes:
         if self.version not in [0x100, 0x300, 0x400]:
             raise SaveError("unsupported version number")
 
         string_table = StringTableOut()
 
-        data_stream = streams.StreamOut(self.endianness)
+        data_stream = StreamOut(self.endianness)
         data_stream.ascii("DATA")
         data_stream.u32(0x64 if self.version == 0x400 else 0x60)
         data_stream.u32(string_table.add(self.name))
@@ -225,11 +260,11 @@ class BAMETAFile:
         data_stream.u8(self.num_channels)
         data_stream.u8(len(self.stream_tracks))
         data_stream.u8(self.flags)
-        data_stream.float(self.unk2)
+        data_stream.float(self.amplitude_rms)
         data_stream.u32(self.sample_rate)
         data_stream.u32(self.loop_start)
         data_stream.u32(self.num_samples)
-        data_stream.float(self.decibel)
+        data_stream.float(self.loudness)
 
         for track in self.stream_tracks:
             track.save(data_stream)
@@ -240,7 +275,7 @@ class BAMETAFile:
         if self.version == 0x400:
             data_stream.float(self.amplitude_peak)
         
-        mark_stream = streams.StreamOut(self.endianness)
+        mark_stream = StreamOut(self.endianness)
         mark_stream.ascii("MARK")
         mark_stream.u32(0x4 + len(self.markers) * 0x10)
         mark_stream.u32(len(self.markers))
@@ -251,7 +286,7 @@ class BAMETAFile:
             mark_stream.u32(marker.length)
         
         if self.version in [0x300, 0x400]:
-            ext_stream = streams.StreamOut(self.endianness)
+            ext_stream = StreamOut(self.endianness)
             ext_stream.ascii("EXT_")
             ext_stream.u32(0x4 + len(self.ext) * 8)
             ext_stream.u32(len(self.ext))
@@ -270,7 +305,7 @@ class BAMETAFile:
         file_size = string_offset + string_table.size()
         file_size = (file_size + 3) & ~3
 
-        stream = streams.StreamOut(self.endianness)
+        stream = StreamOut(self.endianness)
         stream.ascii("AMTA")
         stream.u16(0xFEFF)
         stream.u16(self.version)
