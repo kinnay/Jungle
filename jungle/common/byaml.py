@@ -234,6 +234,11 @@ class BYAMLConverter:
     _dicts: dict[BYAMLNode, dict[str, BYAMLValue]]
     _hashmaps: dict[BYAMLNode, dict[int, BYAMLValue]]
 
+    def __init__(self):
+        self._arrays = {}
+        self._dicts = {}
+        self._hashmaps = {}
+
     def convert(self, node: BYAMLNode) -> BYAMLValue:
         if isinstance(node, (
             BYAMLNone, BYAMLBool, BYAMLInt, BYAMLUint, BYAMLInt64, BYAMLUint64,
