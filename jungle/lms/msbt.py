@@ -16,8 +16,14 @@ class Tag:
 
 
 @dataclass
+class TagEnd:
+    group: int = 0
+    tag: int = 0
+
+
+@dataclass
 class Message:
-    content: list[str | Tag] = field(default_factory=list)
+    content: list[str | Tag | TagEnd] = field(default_factory=list)
     attributes: bytes = b""
     style: int | None = None
 
@@ -96,7 +102,7 @@ class MSBTFile:
         stream = StreamIn(data, self.endianness)
         return stream.repeat(stream.s32, stream.size() // 4)
 
-    def _parse_contents(self, data: bytes) -> list[list[str | Tag]]:
+    def _parse_contents(self, data: bytes) -> list[list[str | Tag | TagEnd]]:
         stream = StreamIn(data, self.endianness)
 
         contents = []
@@ -106,9 +112,9 @@ class MSBTFile:
             contents.append(self._parse_text(stream))
         return contents
 
-    def _parse_text(self, stream: StreamIn) -> list[str | Tag]:
+    def _parse_text(self, stream: StreamIn) -> list[str | Tag | TagEnd]:
         if self.encoding == common.Encoding.UTF8: func = stream.u8
-        if self.encoding == common.Encoding.UTF16: func = stream.u16
+        elif self.encoding == common.Encoding.UTF16: func = stream.u16
         else:
             func = stream.u32
             
@@ -117,7 +123,7 @@ class MSBTFile:
         while True:
             char = func()
 
-            if char in [0, 14] and text:
+            if char in [0, 14, 15] and text:
                 content.append(text)
                 text = ""
 
@@ -128,6 +134,11 @@ class MSBTFile:
                 tag_id = stream.u16()
                 parameters = stream.read(stream.u16())
                 tag = Tag(group_id, tag_id, parameters)
+                content.append(tag)
+            elif char == 15:
+                group_id = stream.u16()
+                tag_id = stream.u16()
+                tag = TagEnd(group_id, tag_id)
                 content.append(tag)
             else:
                 try:
@@ -191,10 +202,10 @@ class MSBTFile:
         return stream.get()
 
     def _save_content(
-        self, content: list[str | Tag], stream: StreamOut
+        self, content: list[str | Tag | TagEnd], stream: StreamOut
     ) -> None:
         if self.encoding == common.Encoding.UTF8: func = stream.u8
-        if self.encoding == common.Encoding.UTF16: func = stream.u16
+        elif self.encoding == common.Encoding.UTF16: func = stream.u16
         else:
             func = stream.u32
         
@@ -202,11 +213,15 @@ class MSBTFile:
             if isinstance(component, str):
                 for char in component:
                     func(ord(char))
-            else:
+            elif isinstance(component, Tag):
                 func(14)
                 stream.u16(component.group)
                 stream.u16(component.tag)
                 stream.u16(len(component.parameters))
                 stream.write(component.parameters)
+            else:
+                func(15)
+                stream.u16(component.group)
+                stream.u16(component.tag)
 
         func(0)
