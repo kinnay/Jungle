@@ -118,7 +118,7 @@ class MSBTFile:
         else:
             func = stream.u32
             
-        content: list[str | Tag] = []
+        content: list[str | Tag | TagEnd] = []
         text = ""
         while True:
             char = func()
@@ -138,8 +138,8 @@ class MSBTFile:
             elif char == 15:
                 group_id = stream.u16()
                 tag_id = stream.u16()
-                tag = TagEnd(group_id, tag_id)
-                content.append(tag)
+                tag_end = TagEnd(group_id, tag_id)
+                content.append(tag_end)
             else:
                 try:
                     text += chr(char)

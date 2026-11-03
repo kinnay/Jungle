@@ -1,13 +1,43 @@
 
-from typing import Callable, Generator, Iterable
-
 from jungle.errors import ParseError
+
+from typing import Callable, Generator, Iterable, Self
 
 import contextlib
 import struct
+import typing
 
 
 Float = float
+
+
+class Serializable(typing.Protocol):
+    def decode(self, stream: StreamIn) -> None:
+        ...
+    
+    def encode(self, stream: StreamOut) -> None:
+        ...
+
+
+class Object:
+    def decode(self, stream: StreamIn) -> None:
+        raise NotImplementedError(f"{self.__class__.__name__}.decode()")
+    
+    def encode(self, stream: StreamOut) -> None:
+        raise NotImplementedError(f"{self.__class__.__name__}.encode()")
+
+    @classmethod
+    def parse(cls, data: bytes, endianness: str) -> Self:
+        stream = StreamIn(data, endianness)
+
+        instance = cls()
+        instance.decode(stream)
+        return instance
+    
+    def save(self, endianness: str) -> bytes:
+        stream = StreamOut(endianness)
+        self.encode(stream)
+        return stream.get()
 
 
 class StreamIn:
@@ -274,6 +304,11 @@ class StreamIn:
         """
         return struct.unpack(self._endian + "d", self.read_at(pos, 8))[0]
 
+    def extract[T: Serializable](self, type: type[T]) -> T:
+        instance = type()
+        instance.decode(self)
+        return instance
+
 
 class StreamOut:
     """
@@ -471,24 +506,27 @@ class StreamOut:
         with self.jump(pos):
             self.u32(value)
     
-    def u64_at(self, pos, value):
+    def u64_at(self, pos: int, value: int) -> None:
         """
         Writes a 64-bit unsigned integer at the given position in the stream.
         """
         with self.jump(pos):
             self.u64(value)
     
-    def s64_at(self, pos, value):
+    def s64_at(self, pos: int, value: int) -> None:
         """
         Writes a 64-bit signed integer at the given position in the stream.
         """
         with self.jump(pos):
             self.s64(value)
     
-    def double_at(self, pos, value):
+    def double_at(self, pos: int, value: Float) -> None:
         """
         Writes a 64-bit floating point value at the given position in the
         stream.
         """
         with self.jump(pos):
             self.double(value)
+    
+    def add(self, object: Serializable) -> None:
+        object.encode(self)
