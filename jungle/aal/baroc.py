@@ -7,7 +7,8 @@ import struct
 
 
 class RollOffModel(enum.IntEnum):
-    Inv = 1
+    Disabled = 0
+    Inverse = 1
     Linear = 2
     Exp = 3
 
@@ -28,7 +29,7 @@ class BAROCFile:
         self.version = 1
         self.endianness = "<"
 
-        self.roll_off_model = RollOffModel.Inv
+        self.roll_off_model = RollOffModel.Inverse
         self.ref_distance = 0
         self.max_distance = 0
         self.roll_off_factor = 0
