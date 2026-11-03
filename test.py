@@ -1,5 +1,5 @@
 
-from jungle.aal import baatn, bameta, bars, barslist
+from jungle.aal import baatn, bameta, baroc, bars, barslist
 from jungle.agl import pmaa
 from jungle.cas import baev
 from jungle.common import byaml
@@ -72,6 +72,7 @@ def test_format(name, cls):
 test_format("baatn", baatn.BAATNFile)
 test_format("baev", baev.BAEVFile)
 test_format("bameta", bameta.BAMETAFile)
+test_format("baroc", baroc.BAROCFile)
 test_format("bars", bars.BARSFile)
 test_format("barslist", barslist.BARSLISTFile)
 test_format("bdf", bdf.BDFFile)

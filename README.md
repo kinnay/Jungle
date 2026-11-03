@@ -21,6 +21,7 @@ The following file formats are currently supported by this library:
 | Multiple | [BYAML](https://nintendo-formats.com/libs/common/byaml.html) | `.byml` / `.byaml` / `.bgyml` | Binary YAML |
 | AAL | [BAATN](https://nintendo-formats.com/libs/aal/baatn.html) | `.baatn` | Audio attenuators |
 | AAL | [BAMETA](https://nintendo-formats.com/libs/aal/bameta.html) | `.bameta` | Audio metadata |
+| AAL | [BAROC](https://nintendo-formats.com/libs/aal/baroc.html) | `.baroc` | Audio roll-off curve |
 | AAL | [BARS](https://nintendo-formats.com/libs/aal/bars.html) | `.bars` | Audio resources |
 | AAL | [BARSLIST](https://nintendo-formats.com/libs/aal/barslist.html) | `.barslist` | Audio resource lists |
 | AGL | [PMAA](https://nintendo-formats.com/libs/agl/pmaa.html) | `.bagl*` | Graphics parameters |
