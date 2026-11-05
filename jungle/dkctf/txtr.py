@@ -20,7 +20,10 @@ class TextureType(enum.IntEnum):
 
 
 class TextureFormat(enum.IntEnum):
+    UNORM_R8_G8_B8_A8 = 12
     UNORM_BC1 = 20
+    UNORM_BC3 = 24
+    UNORM_BC5 = 28
 
 
 class TextureFilter(enum.IntEnum):
