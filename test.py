@@ -3,7 +3,7 @@ from jungle.aal import baatn, bameta, baroc, bars, barslist
 from jungle.agl import pmaa
 from jungle.cas import baev
 from jungle.common import byaml
-from jungle.dkctf import pak, genp
+from jungle.dkctf import pak, genp, txtr
 from jungle.gfd import gfx2
 from jungle.lms import msbp, msbt
 from jungle.nw import bfwav
@@ -90,3 +90,5 @@ test_format("yaz0", yaz0.Yaz0File)
 
 test_format("dkctf/pak", pak.PAKFile)
 test_format("dkctf/genp", genp.GENPFile)
+test_format("dkctf/txtr", txtr.TXTRFile)
+test_format("dkctf/txtrmeta", txtr.TXTRMetadata)

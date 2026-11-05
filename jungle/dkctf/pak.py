@@ -143,18 +143,12 @@ class PAKFile:
         for i in range(stream.u32()):
             entries.append(stream.extract(MetaDataOffsetEntry))
 
-        entries.sort(key=lambda entry: entry.offset)
-
-        for i, entry in enumerate(entries):
-            offset = entry.offset
-            if i < len(entries) - 1:
-                end = entries[i + 1].offset
-            else:
-                end = len(data)
-
-            metadata = data[offset : end]
+        for entry in entries:
             if entry.id.value not in self.assets:
                 raise ParseError("META entry has invalid id")
+            
+            stream.seek(entry.offset)
+            metadata = stream.read(stream.u32())
             self.assets[entry.id.value].metadata = metadata
 
     def _parse_string_table(self, data: bytes) -> None:
@@ -195,7 +189,7 @@ class PAKFile:
             if asset.metadata:
                 entry = MetaDataOffsetEntry(CGuid(id), offset)
                 entries.append(entry)
-                offset += len(asset.metadata)
+                offset += len(asset.metadata) + 4
 
         stream = StreamOut(">")
         stream.u32(count)
@@ -204,6 +198,7 @@ class PAKFile:
 
         for id, asset in sorted(self.assets.items()):
             if asset.metadata:
+                stream.u32(len(asset.metadata))
                 stream.write(asset.metadata)
         
         return stream.get()

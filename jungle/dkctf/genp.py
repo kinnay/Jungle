@@ -1,8 +1,8 @@
 
 from jungle.dkctf.common import CAssetHeader, CFormDescriptor, CChunkDescriptor
-from jungle.dkctf.codegen import *
+from jungle.dkctf.codegen import GPSMDescription
 from jungle.errors import ParseError
-from jungle.streams import StreamIn
+from jungle.streams import StreamIn, StreamOut
 
 
 class GENPFile:
