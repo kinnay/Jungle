@@ -24,6 +24,9 @@ class CGuid:
         stream.write(guid.bytes)
 
 
+CObjectId = CGuid
+
+
 @dataclass
 class CObjectTag:
     type: str = "XXXX"
@@ -36,6 +39,20 @@ class CObjectTag:
     def encode(self, stream: StreamOut) -> None:
         stream.ascii(self.type)
         stream.add(self.id)
+
+
+@dataclass
+class CAssetHeader:
+    type: int = 0
+    version: int = 0
+
+    def decode(self, stream: StreamIn) -> None:
+        self.type = stream.u16()
+        self.version = stream.u16()
+
+    def encode(self, stream: StreamOut) -> None:
+        stream.u16(self.type)
+        stream.u16(self.version)
 
 
 @dataclass
@@ -170,3 +187,16 @@ class CAABox:
     def encode(self, stream: StreamOut) -> None:
         self.low.encode(stream)
         self.high.encode(stream)
+
+
+class CQuaternion:
+    w: float
+    vector: CVector3f
+
+    def decode(self, stream: StreamIn) -> None:
+        self.w = stream.float()
+        self.vector.decode(stream)
+
+    def encode(self, stream: StreamOut) -> None:
+        stream.float(self.w)
+        stream.add(self.vector)

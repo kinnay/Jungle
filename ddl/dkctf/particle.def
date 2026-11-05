@@ -1,0 +1,551 @@
+
+description GPSMDescription {
+    // Particle emission configuration
+    EMTR EmitterElement emitter;
+    PSLT IntElement system_lifetime;
+    ISVF RealElement inherited_velocity_factor; // Exact placement unknown
+    SEED IntElement seed;
+    MAXP IntElement max_particles;
+    GRTE RealElement emitter_rate;
+    LTME IntElement particle_lifetime;
+
+    // Sprite configuration
+    SIZE RealElement sprite_size;
+    ROTA RealElement sprite_rotation;
+    ORNT BoolElement sprite_orientation;
+
+    // Particle configuration
+    COLR ColorElement particle_color;
+    PBDM IntElement particle_blend_mode;
+
+    // System flags
+    ZBUF BoolElement depth_write_enabled;
+    SORT BoolElement sorting_enabled;
+    LIT_ BoolElement lighting_enabled;
+
+    // Sprite texture
+    TEXR TextureElement texture;
+
+    // Particle render flags
+    CIND BoolElement color_indirect_texture;
+    FXBR RealElement effect_bounds_radius;
+    RDOP BoolElement render_camera_facing_sprite;
+    SCTR IntElement sprite_center;
+    SCNV BoolElement silhouette_enabled; // Exact placement unknown
+    DFOG BoolElement disable_fog;
+    PMRT VectorElement particle_model_rotation_euler; // Exact placement unknown
+    PMSC VectorElement particle_model_scale; // Exact placement unknown
+    PMUS BoolElement render_transformed_quad;
+    PMOO BoolElement inherit_object_orientation;
+    ORTC BoolElement initial_orientation;
+
+    // Exact placement unknown
+    PMLT BoolElement particle_model_lighting;
+
+    // Velocity configuration
+    VMPC BoolElement apply_velocity_modifiers_on_particle_creation;
+    VMD1 BoolElement modify_velocity_locally_1;
+    VGD1 BoolElement modify_velocity_globally_1;
+    VEL1 ModVectorElement velocity_modifier_1;
+    VMD2 BoolElement modify_velocity_locally_2;
+    VGD2 BoolElement modify_velocity_globally_2;
+    VEL2 ModVectorElement velocity_modifier_2;
+    VMD3 BoolElement modify_velocity_locally_3;
+    VGD3 BoolElement modify_velocity_globally_3;
+    VEL3 ModVectorElement velocity_modifier_3;
+    VMD4 BoolElement modify_velocity_locally_4;
+    VGD4 BoolElement modify_velocity_globally_4;
+    VEL4 ModVectorElement velocity_modifier_4;
+
+    // Lighting configuration
+    LTYP IntElement light_type;
+    LCLR ColorElement light_color;
+    LINT RealElement light_intensity;
+    LOFF VectorElement light_offset;
+    LDIR VectorElement light_direction;
+    LFOT IntElement light_falloff_type;
+    LFOR RealElement light_falloff_rate;
+    LSLA RealElement spotlight_cutoff_angle;
+
+    // Variable definitions
+    SVR0 RealElement system_var_real_0;
+    SVR1 RealElement system_var_real_1;
+    SVR2 RealElement system_var_real_2;
+    SVR3 RealElement system_var_real_3;
+    SVR4 RealElement system_var_real_4;
+
+    ADV1 RealElement particle_var_real_1;
+    ADV2 RealElement particle_var_real_2;
+    ADV3 RealElement particle_var_real_3;
+    ADV4 RealElement particle_var_real_4;
+    ADV5 RealElement particle_var_real_5;
+    ADV5 RealElement particle_var_real_6;
+    ADV5 RealElement particle_var_real_7;
+    ADV5 RealElement particle_var_real_8;
+    ADV5 RealElement particle_var_real_9;
+
+    IAV0 IntElement particle_var_int_0;
+    IAV1 IntElement particle_var_int_1;
+    IAV2 IntElement particle_var_int_2;
+    IAV3 IntElement particle_var_int_3;
+
+    // Exact placement unknown
+    SSZE RealElement sprite_size_secondary;
+
+    // General configuration
+    PMDL ModelElement model;
+    KSSM SpawnSystemKeyframeDataElement keyframe_data;
+    XFMD IntElement transform_mode;
+    INTR RotationElement internal_rotation;
+    INTT VectorElement internal_translation; // Exact placement unknown
+    INTS VectorElement internal_scale; // Exact placement unknown
+    SPCL ColorElement child_system_color; // Exact placement unknown
+    WSTP IntElement water_sort_type;
+    SCX0 ComplexElement complex_variable;
+    PSTP IntElement shader_type;
+    DEFX BoolElement defx; // Exact placement unknown
+    PMRQ RotationElement particle_model_rotation; // Exact placement unknown
+}
+
+element BoolElement {
+    default BEConstant;
+
+    CNST BEConstant;
+}
+
+element IntElement {
+    default IEConstant;
+
+    CNST IEConstant;
+    IRND IEInitialRandom;
+    PAP0 IEPAP0;
+    PAP1 IEPAP1;
+    PAP2 IEPAP2;
+    PAP3 IEPAP3;
+    RAND IERandom;
+}
+
+element RealElement {
+    default REConstant;
+
+    ADD_ REAdd;
+    CHAN RETimeChain;
+    CLTN REConditionalLessThan;
+    CNST REConstant;
+    CRNG REConditionalRange;
+    IRND REInitialRandom;
+    ISWT REInitialSwitch;
+    KEYE REKeyframeEmitter;
+    KEYP REKeyframeParticle;
+    KPIN REKeepInitial;
+    MULT REMultiply;
+    PAP1 REPAP1;
+    PAP2 REPAP2;
+    PAP3 REPAP3;
+    PAP4 REPAP4;
+    PAP5 REPAP5;
+    PRLW REParticleValue_Rotation_LineWidth;
+    PSA0 REPSA0;
+    PSA1 REPSA1;
+    PSLL REParticleValue_Size_LineLength;
+    PSSZ REParticleValue_SecondarySize;
+    RAND RERandom;
+    SUB_ RESubtract;
+    VMAG REVectorMagnitude;
+    VXTR REVectorComponentX;
+    VYTR REVectorComponentY;
+    VZTR REVectorComponentZ;
+}
+
+element ComplexElement {
+    default ComplexWaterProxy;
+
+    KPIN ComplexKeepInitial;
+    WPXY ComplexWaterProxy;
+}
+
+element VectorElement {
+    default VEConstant;
+
+    AEXT VEAEXT;
+    ANGC VEAngleCone;
+    CIRC VECircle;
+    CNST VEConstant;
+    EXTT VEEXTT;
+    RTOV VERealToVector;
+}
+
+element RotationElement {
+    default ERotationConst;
+
+    CNST ERotationConst;
+    EXTR ERotationEXTR;
+    KPIN ERotationKeepInitial;
+    REUL ERotationEuler;
+}
+
+element ModVectorElement {
+    default MVEConstant;
+
+    BNCE MVEBounce;
+    CNST MVEConstant;
+    GRAV MVEGravity;
+    LMPL MVELinearImplosion;
+    WIND MVEWind;
+}
+
+element ColorElement {
+    default CEConstant;
+
+    AEXT CEAEXT;
+    CNST CEConstant;
+    EXTC CEEXTC;
+    MDAO CEModifyAlphaOnly;
+    MULT CEMultiply;
+}
+
+element EmitterElement {
+    default EEAngleSphere;
+
+    ASPH EEAngleSphere;
+    PLNE EEPlane;
+    SEMR EESimpleEmitter;
+}
+
+element TextureElement {
+    default TENone;
+
+    ATFB TEAnimFlipBookTexture;
+    CNST TEConstant;
+    NONE TENone;
+    TEXP TETexturePalette;
+}
+
+element ModelElement {
+    default MENone;
+
+    CNST MEConstant;
+    NONE MENone;
+}
+
+element StringElement {
+    default SEConstant;
+
+    CNST SEConstant;
+}
+
+element SpawnSystemKeyframeDataElement{
+    default SpawnSystemKeyframeData;
+
+    CNST SpawnSystemKeyframeData;
+}
+
+struct BEConstant {
+    bool value;
+}
+
+struct IEConstant {
+    int32 value;
+}
+
+struct IEInitialRandom {
+    IntElement minimum;
+    IntElement maximum;
+}
+
+struct IEPAP0 {}
+struct IEPAP1 {}
+struct IEPAP2 {}
+struct IEPAP3 {}
+
+struct IERandom {
+    IntElement minimum;
+    IntElement maximum;
+}
+
+struct REAdd {
+    RealElement a;
+    RealElement b;
+}
+
+struct RETimeChain {
+    RealElement field_C;
+    RealElement field_10;
+    IntElement field_14;
+}
+
+struct REConditionalLessThan{
+    RealElement field_C;
+    RealElement field_10;
+    RealElement field_14;
+    RealElement field_18;
+}
+
+struct REConstant {
+    float value;
+}
+
+struct REConditionalRange{
+    RealElement field_C;
+    RealElement field_10;
+    RealElement field_14;
+    RealElement field_18;
+    RealElement field_1C;
+}
+
+struct REInitialRandom{
+    RealElement base;
+    RealElement span;
+}
+
+struct REInitialSwitch{
+    RealElement field_C;
+    RealElement field_10;
+}
+
+struct REKeyframeEmitter {
+    uint32 unk;
+    uint32 unk2;
+    bool unk3;
+    uint8 unk4;
+    uint32 unk5;
+    uint32 unk6;
+    list<float> frames;
+}
+
+struct REKeyframeParticle {
+    uint32 unk;
+    uint32 unk2;
+    bool unk3;
+    uint8 unk4;
+    uint32 unk5;
+    uint32 unk6;
+    list<float> frames;
+}
+
+struct REKeepInitial {
+    RealElement value;
+}
+
+struct REMultiply {
+    RealElement a;
+    RealElement b;
+}
+
+struct REPAP1 {}
+struct REPAP2 {}
+struct REPAP3 {}
+struct REPAP4 {}
+struct REPAP5 {}
+
+struct REParticleValue_Rotation_LineWidth {}
+
+struct REPSA0 {}
+struct REPSA1 {}
+
+struct REParticleValue_Size_LineLength {}
+struct REParticleValue_SecondarySize {}
+
+struct RERandom {
+    RealElement base;
+    RealElement span;
+}
+
+struct RESubtract {
+    RealElement a;
+    RealElement b;
+}
+
+struct REVectorMagnitude {
+    VectorElement vector;
+}
+
+struct REVectorComponentX {
+    VectorElement vector;
+}
+
+struct REVectorComponentY {
+    VectorElement vector;
+}
+
+struct REVectorComponentZ {
+    VectorElement vector;
+}
+
+struct ComplexKeepInitial {
+    ComplexElement value;
+}
+
+struct ComplexWaterProxy {
+    VectorElement field_C;
+    VectorElement field_10;
+    ColorElement field_14;
+}
+
+struct VEAEXT {
+    StringElement name;
+}
+
+struct VEAngleCone {
+    RealElement field_C;
+    RealElement field_10;
+    RealElement field_14;
+    RealElement field_18;
+    RealElement field_1C;
+}
+
+struct VECircle {
+    VectorElement unk;
+    VectorElement axis;
+    RealElement unk2;
+    RealElement unk3;
+    RealElement unk4;
+}
+
+struct VEConstant {
+    RealElement x;
+    RealElement y;
+    RealElement z;
+}
+
+struct VEEXTT {}
+
+struct VERealToVector{
+    RealElement value;
+}
+
+struct ERotationConst {
+    CQuaternion quaternion;
+}
+
+struct ERotationEXTR {}
+
+struct ERotationKeepInitial {
+    RotationElement value;
+}
+
+struct ERotationEuler {
+    RealElement field_C;
+    RealElement field_10;
+    RealElement field_14;
+}
+
+struct MVEBounce {
+    VectorElement unk1;
+    VectorElement axis;
+    RealElement unk2;
+    RealElement unk3;
+    BoolElement unk4;
+}
+
+struct MVEConstant {
+    RealElement x;
+    RealElement y;
+    RealElement z;
+}
+
+struct MVEGravity {
+    VectorElement value;
+}
+
+struct MVELinearImplosion {
+    VectorElement unk;
+    RealElement unk2;
+    RealElement unk3;
+    RealElement unk4;
+    BoolElement unk5;
+}
+
+struct MVEWind {
+    VectorElement direction;
+    RealElement strength;
+}
+
+struct CEAEXT {
+    StringElement name;
+}
+
+struct CEConstant {
+    RealElement red;
+    RealElement green;
+    RealElement blue;
+    RealElement alpha;
+}
+
+struct CEEXTC {}
+
+struct CEModifyAlphaOnly {
+    ColorElement color;
+    RealElement value;
+}
+
+struct CEMultiply {
+    ColorElement a;
+    ColorElement b;
+}
+
+struct EEAngleSphere {
+    VectorElement field_C;
+    RealElement field_10;
+    RealElement field_14;
+    RealElement field_18;
+    RealElement field_1C;
+    RealElement field_20;
+    RealElement field_24;
+}
+
+struct EEPlane {
+    VectorElement unk;
+    VectorElement axis;
+    VectorElement unk2;
+    RealElement unk3;
+    RealElement unk4;
+    RealElement spread_angle;
+}
+
+struct EESimpleEmitter {
+    VectorElement field_C;
+    VectorElement field_10;
+}
+
+struct TEAnimFlipBookTexture {
+    CObjectId id;
+    IntElement unk;
+    BoolElement unk2;
+}
+
+struct TEConstant {
+    CObjectId id;
+}
+
+struct TENone {}
+
+struct TETexturePalette {
+    CObjectId id;
+    IntElement size_x;
+    IntElement size_y;
+    RealElement unk;
+}
+
+struct MEConstant {
+    CObjectId id;
+}
+
+struct MENone {}
+
+struct SEConstant {
+    string value;
+}
+
+struct SpawnSystemKeyframeData {
+    uint32 field_0;
+    uint32 field_4;
+    uint32 field_8;
+    uint32 field_C;
+    list<pair<int32, list<SpawnSystemKeyFrameInfo>>> info;
+}
+
+struct SpawnSystemKeyFrameInfo {
+    CObjectId object_id;
+    uint32 resource_type;
+}
