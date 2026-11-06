@@ -643,19 +643,21 @@ class ParticleGenerator:
         writer.writeline("from jungle.errors import ParseError")
         writer.writeline("from jungle.streams import StreamIn, StreamOut")
 
+        writer.blank(2)
+        writer.writeline("class Element:")
+        writer.indent()
+        writer.writeline("def type_id(self) -> str:")
+        writer.indent()
+        writer.writeline(
+            'raise NotImplementedError(f"{self.__class__.__name__}.type_id()")'
+        )
+        writer.unindent()
+        writer.unindent()
+
         for name, element in self._file.elements.items():
             writer.blank(2)
-            writer.writeline(f"class {name}:")
+            writer.writeline(f"class {name}(Element):")
             writer.indent()
-
-            writer.writeline("def type_id(self) -> str:")
-            writer.indent()
-            writer.writeline(
-                'raise NotImplementedError(f"{self.__class__.__name__}'
-                '.type_id()")'
-            )
-            writer.unindent()
-            writer.writeline()
 
             writer.writeline("def decode(self, stream: StreamIn) -> None:")
             writer.indent()

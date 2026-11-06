@@ -8,10 +8,12 @@ from jungle.errors import ParseError
 from jungle.streams import StreamIn, StreamOut
 
 
-class BoolElement:
+class Element:
     def type_id(self) -> str:
         raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+
+
+class BoolElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -34,10 +36,7 @@ class BoolElement:
         stream.add(value)
 
 
-class IntElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class IntElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -66,10 +65,7 @@ class IntElement:
         stream.add(value)
 
 
-class RealElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class RealElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -118,10 +114,7 @@ class RealElement:
         stream.add(value)
 
 
-class ComplexElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class ComplexElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -145,10 +138,7 @@ class ComplexElement:
         stream.add(value)
 
 
-class VectorElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class VectorElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -176,10 +166,7 @@ class VectorElement:
         stream.add(value)
 
 
-class RotationElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class RotationElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -205,10 +192,7 @@ class RotationElement:
         stream.add(value)
 
 
-class ModVectorElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class ModVectorElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -235,10 +219,7 @@ class ModVectorElement:
         stream.add(value)
 
 
-class ColorElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class ColorElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -265,10 +246,7 @@ class ColorElement:
         stream.add(value)
 
 
-class EmitterElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class EmitterElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -293,10 +271,7 @@ class EmitterElement:
         stream.add(value)
 
 
-class TextureElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class TextureElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -322,10 +297,7 @@ class TextureElement:
         stream.add(value)
 
 
-class ModelElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class ModelElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -349,10 +321,7 @@ class ModelElement:
         stream.add(value)
 
 
-class StringElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class StringElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     
@@ -375,10 +344,7 @@ class StringElement:
         stream.add(value)
 
 
-class SpawnSystemKeyframeDataElement:
-    def type_id(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}.type_id()")
-    
+class SpawnSystemKeyframeDataElement(Element):
     def decode(self, stream: StreamIn) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.decode()")
     

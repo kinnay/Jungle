@@ -1,6 +1,6 @@
 
 from jungle.dkctf.common import CAssetHeader, CFormDescriptor, CChunkDescriptor
-from jungle.dkctf.codegen import GPSMDescription
+from jungle.dkctf.codegen import *
 from jungle.errors import ParseError
 from jungle.streams import StreamIn, StreamOut
 
