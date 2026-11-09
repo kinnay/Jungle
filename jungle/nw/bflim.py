@@ -12,13 +12,26 @@ import struct
 
 
 class BFLIMFormat(enum.IntEnum):
-    UNORM_R8_G8 = 3
-    UNORM_R8_G8_B8_A8 = 9
-    UNORM_BC1 = 12
-    UNORM_BC2 = 13
-    UNORM_BC3 = 14
-    UNORM_BC4 = 16
-    UNORM_BC5 = 17
+    L8 = 0
+    A8 = 1
+    LA4 = 2
+    LA8 = 3
+    RG8 = 4
+    BGR565 = 5
+    RGBA5551 = 7
+    ABGR4 = 8
+    RGBA8 = 9
+    BC1 = 12
+    BC2 = 13
+    BC3 = 14
+    BC4L = 15
+    BC4A = 16
+    BC5 = 17
+    RGBA_SRGB = 20
+    BC1_SRGB = 21
+    BC2_SRGB = 22
+    BC3_SRGB = 23
+    RGB10A2 = 24
 
 
 @dataclass
@@ -29,7 +42,7 @@ class BFLIMFile:
     width: int = 0
     height: int = 0
     alignment: int = 0
-    format: BFLIMFormat = BFLIMFormat.UNORM_R8_G8_B8_A8
+    format: BFLIMFormat = BFLIMFormat.L8
     tile_mode: GX2TileMode = GX2TileMode.Default
     swizzle: int = 0
     data: bytes = b""
