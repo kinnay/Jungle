@@ -106,17 +106,19 @@ class BFLIMFile:
         stream.u32(len(self.data))
         return stream.get()
 
-    def _find_footer(self, data: bytes) -> tuple[int, str]:
+    def _find_footer(self, data: bytes) -> int:
         if len(data) < 4:
             raise ParseError("file is too small")
 
         offset_be = self._find_footer_with_endianness(data, ">")
         offset_le = self._find_footer_with_endianness(data, "<")
 
-        if offset_be is None and offset_le is None:
+        if offset_be is not None:
+            return offset_be
+        elif offset_le is not None:
+            return offset_le
+        else:
             raise ParseError("failed to find footer")
-
-        return offset_be or offset_le
 
     def _find_footer_with_endianness(
         self, data: bytes, endianness: str
