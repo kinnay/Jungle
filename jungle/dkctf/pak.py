@@ -46,13 +46,20 @@ class NameTagEntry:
     tag: CObjectTag = field(default_factory=CObjectTag)
     name: str = ""
 
-    def decode(self, stream: StreamIn) -> None:
+    def decode(self, stream: StreamIn, switch: bool) -> None:
         self.tag = stream.extract(CObjectTag)
-        self.name = stream.string()
+        if switch:
+            self.name = stream.ascii(stream.u32())
+        else:
+            self.name = stream.string()
 
-    def encode(self, stream: StreamOut) -> None:
+    def encode(self, stream: StreamOut, switch: bool) -> None:
         stream.add(self.tag)
-        stream.string(self.name)
+        if switch:
+            stream.u32(len(self.name))
+            stream.ascii(self.name)
+        else:
+            stream.string(self.name)
 
 
 @dataclass
@@ -65,12 +72,15 @@ class PAKAsset:
 
 class PAKFile:
     assets: dict[str, PAKAsset]
+    switch: bool | None
 
     def __init__(self):
         self.assets = {}
+        self.switch = None
 
     def parse(self, data: bytes) -> None:
         self.assets = {}
+        self.switch = None
 
         pack = CFormDescriptor.fromdata(data, "PACK", 0)
         tocc = CFormDescriptor.fromdata(pack, "TOCC", 1)
@@ -153,8 +163,21 @@ class PAKFile:
 
     def _parse_string_table(self, data: bytes) -> None:
         stream = StreamIn(data, ">")
-        for i in range(stream.u32()):
-            entry = stream.extract(NameTagEntry)
+
+        count = stream.u32()
+
+        # Detect whether the file uses the Wii U or Switch format by checking
+        # whether the first name has a length prefix.
+        switch = False
+        if count > 0:
+            peek = stream.peek(24)
+            switch = peek[20] == 0
+            self.switch = switch
+
+        for i in range(count):
+            entry = NameTagEntry()
+            entry.decode(stream, switch)
+            
             tag = entry.tag
             if tag.id.value not in self.assets:
                 raise ParseError("STRG entry has invalid asset id")
@@ -217,5 +240,5 @@ class PAKFile:
         stream = StreamOut(">")
         stream.u32(len(entries))
         for entry in entries:
-            stream.add(entry)
+            entry.encode(stream, bool(self.switch))
         return stream.get()
