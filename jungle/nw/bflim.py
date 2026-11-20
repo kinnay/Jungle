@@ -18,7 +18,7 @@ class BFLIMFormat(enum.IntEnum):
     LA8 = 3
     RG8 = 4
     BGR565 = 5
-    RGBA5551 = 7
+    RGB5A1 = 7
     ABGR4 = 8
     RGBA8 = 9
     BC1 = 12
