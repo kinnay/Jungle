@@ -60,6 +60,9 @@ class StreamIn:
         self._pos = 0
         self._stack = []
     
+    def little_endian(self) -> bool:
+        return self._endian == "<"
+    
     def set_endianness(self, endianness: str) -> None:
         """Changes the current endianness of the stream."""
         self._endian = endianness
@@ -100,7 +103,7 @@ class StreamIn:
         Changes the current position of the input stream. Raises ParseError
         if the stream is moved past the end of the memory buffer.
         """
-        if pos > self.size():
+        if pos > self.size() or pos < 0:
             raise ParseError("buffer overflow")
         self._pos = pos
     
@@ -127,7 +130,7 @@ class StreamIn:
         """
         Returns num bytes from the input buffer without advancing the position.
         """
-        if self.available() < num:
+        if self.available() < num or num < 0:
             raise ParseError("buffer overflow")
         return self._data[self._pos : self._pos + num]
         
@@ -328,6 +331,9 @@ class StreamOut:
         self._data = bytearray()
         self._pos = 0
         self._stack = []
+
+    def little_endian(self) -> str:
+        return self._endian == "<"
         
     def push(self) -> None:
         """Pushes the current position of the stream onto a stack."""

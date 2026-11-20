@@ -11,7 +11,7 @@ import enum
 
 type BYAMLValue = \
     None | bool | int | float | str | bytes | tuple[bytes, int] | \
-    list[BYAMLValue] | dict[str, BYAMLValue] | dict[int, BYAMLValue]
+    list[BYAMLValue] | dict[str, BYAMLValue] | dict[bytes, BYAMLValue]
 
 
 def create_python_object(node: BYAMLNode) -> BYAMLValue:
@@ -21,6 +21,10 @@ def create_python_object(node: BYAMLNode) -> BYAMLValue:
 
 class BYAMLNodeType(enum.IntEnum):
     Hashmap = 0x20
+    HashmapLast = 0x2F
+
+    OrderedHashmap = 0x30
+    OrderedHashmapLast = 0x3F
 
     String = 0xA0
     Binary = 0xA1
@@ -46,7 +50,7 @@ class BYAMLNodeType(enum.IntEnum):
 class BYAMLNode:
     """Base class for BYAML nodes. Should not be instantiated directly."""
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         raise NotImplementedError(f"{self.__class__.__name__}.type()")
 
     def minimum_version(self) -> int:
@@ -56,10 +60,24 @@ class BYAMLNode:
 
 @dataclass(eq=False)
 class BYAMLHashmap(BYAMLNode):
-    value: dict[int, BYAMLNode] = field(default_factory=dict)
+    value: dict[bytes, BYAMLNode] = field(default_factory=dict)
+    hash_size: int = 4
 
-    def type(self) -> BYAMLNodeType:
-        return BYAMLNodeType.Hashmap
+    def type(self) -> int:
+        return BYAMLNodeType.Hashmap + self.hash_size // 4 - 1
+
+    def minimum_version(self) -> int:
+        """This is either 6 or 7, not sure."""
+        return 7
+
+
+@dataclass(eq=False)
+class BYAMLOrderedHashmap(BYAMLNode):
+    value: dict[bytes, BYAMLNode] = field(default_factory=dict)
+    hash_size: int = 4
+
+    def type(self) -> int:
+        return BYAMLNodeType.OrderedHashmap + self.hash_size // 4 - 1
 
     def minimum_version(self) -> int:
         """This is either 6 or 7, not sure."""
@@ -70,7 +88,7 @@ class BYAMLHashmap(BYAMLNode):
 class BYAMLString(BYAMLNode):
     value: str = ""
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.String
 
 
@@ -78,7 +96,7 @@ class BYAMLString(BYAMLNode):
 class BYAMLBinary(BYAMLNode):
     value: bytes = b""
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Binary
 
     def minimum_version(self) -> int:
@@ -94,7 +112,7 @@ class BYAMLAlignedBinary(BYAMLNode):
     value: bytes = b""
     alignment: int = 0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.AlignedBinary
 
     def minimum_version(self) -> int:
@@ -105,7 +123,7 @@ class BYAMLAlignedBinary(BYAMLNode):
 class BYAMLArray(BYAMLNode):
     value: list[BYAMLNode] = field(default_factory=list)
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Array
 
 
@@ -113,7 +131,7 @@ class BYAMLArray(BYAMLNode):
 class BYAMLDict(BYAMLNode):
     value: dict[str, BYAMLNode] = field(default_factory=dict)
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Dict
 
 
@@ -121,7 +139,7 @@ class BYAMLDict(BYAMLNode):
 class BYAMLBool(BYAMLNode):
     value: bool = False
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Bool
 
 
@@ -129,7 +147,7 @@ class BYAMLBool(BYAMLNode):
 class BYAMLInt(BYAMLNode):
     value: int = 0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Int
 
 
@@ -137,7 +155,7 @@ class BYAMLInt(BYAMLNode):
 class BYAMLFloat(BYAMLNode):
     value: float = .0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Float
 
 
@@ -145,7 +163,7 @@ class BYAMLFloat(BYAMLNode):
 class BYAMLUint(BYAMLNode):
     value: int = 0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Uint
 
     def minimum_version(self) -> int:
@@ -156,7 +174,7 @@ class BYAMLUint(BYAMLNode):
 class BYAMLInt64(BYAMLNode):
     value: int = 0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Int64
 
     def minimum_version(self) -> int:
@@ -167,7 +185,7 @@ class BYAMLInt64(BYAMLNode):
 class BYAMLUint64(BYAMLNode):
     value: int = 0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Uint64
 
     def minimum_version(self) -> int:
@@ -178,7 +196,7 @@ class BYAMLUint64(BYAMLNode):
 class BYAMLDouble(BYAMLNode):
     value: float = .0
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Double
 
     def minimum_version(self) -> int:
@@ -189,7 +207,7 @@ class BYAMLDouble(BYAMLNode):
 class BYAMLNone(BYAMLNode):
     value: None = None
 
-    def type(self) -> BYAMLNodeType:
+    def type(self) -> int:
         return BYAMLNodeType.Null
 
 
@@ -232,7 +250,7 @@ class BYAMLConverter:
 
     _arrays: dict[BYAMLNode, list[BYAMLValue]]
     _dicts: dict[BYAMLNode, dict[str, BYAMLValue]]
-    _hashmaps: dict[BYAMLNode, dict[int, BYAMLValue]]
+    _hashmaps: dict[BYAMLNode, dict[bytes, BYAMLValue]]
 
     def __init__(self):
         self._arrays = {}
@@ -273,11 +291,11 @@ class BYAMLConverter:
 
             return dictionary
                         
-        elif isinstance(node, BYAMLHashmap):
+        elif isinstance(node, (BYAMLHashmap, BYAMLOrderedHashmap)):
             if node in self._hashmaps:
                 return self._hashmaps[node]
             
-            map: dict[int, BYAMLValue] = {}
+            map: dict[bytes, BYAMLValue] = {}
             self._hashmaps[node] = map
 
             for hash, value in node.value.items():
@@ -301,6 +319,7 @@ class BYAMLParser:
     _array_nodes: dict[int, BYAMLArray]
     _dict_nodes: dict[int, BYAMLDict]
     _hashmap_nodes: dict[int, BYAMLHashmap]
+    _ordered_hashmap_nodes: dict[int, BYAMLOrderedHashmap]
 
     def __init__(self, file: BYAMLFile):
         self._file = file
@@ -312,6 +331,7 @@ class BYAMLParser:
         self._array_nodes = {}
         self._dict_nodes = {}
         self._hashmap_nodes = {}
+        self._ordered_hashmap_nodes = {}
     
     def parse(self, data: bytes) -> None:
         if len(data) < 2:
@@ -359,9 +379,15 @@ class BYAMLParser:
         type = stream.peek(1)[0]
         if type == BYAMLNodeType.Array: return self._parse_array(stream)
         elif type == BYAMLNodeType.Dict: return self._parse_dictionary(stream)
-        elif type == BYAMLNodeType.Hashmap: return self._parse_hashmap(stream)
+        elif BYAMLNodeType.Hashmap <= type <= BYAMLNodeType.HashmapLast:
+            return self._parse_hashmap(stream)
+        elif BYAMLNodeType.OrderedHashmap <= type <= \
+                BYAMLNodeType.OrderedHashmapLast:
+            return self._parse_ordered_hashmap(stream)
         else:
-            raise ParseError("root node must be an array or dictionary")
+            raise ParseError(
+                "root node must be an array, dictionary or hash map"
+            )
     
     def _parse_node(self, stream: StreamIn, type: int) -> BYAMLNode:
         if type == BYAMLNodeType.Array:
@@ -370,6 +396,13 @@ class BYAMLParser:
         elif type == BYAMLNodeType.Dict:
             with stream.jump(stream.u32()):
                 return self._parse_dictionary(stream)
+        elif BYAMLNodeType.Hashmap <= type <= BYAMLNodeType.HashmapLast:
+            with stream.jump(stream.u32()):
+                return self._parse_hashmap(stream)
+        elif BYAMLNodeType.OrderedHashmap <= type <= \
+                BYAMLNodeType.OrderedHashmapLast:
+            with stream.jump(stream.u32()):
+                return self._parse_ordered_hashmap(stream)
         else:
             return self._parse_scalar(stream, type)
     
@@ -467,25 +500,74 @@ class BYAMLParser:
         return self._dict_nodes[pos]
 
     def _parse_hashmap(self, stream: StreamIn) -> BYAMLHashmap:
-        if stream.u8() != BYAMLNodeType.Hashmap:
+        type = stream.u8()
+        if not BYAMLNodeType.Hashmap <= type <= BYAMLNodeType.HashmapLast:
             raise ParseError("expected a hashmap node")
 
         pos = stream.tell()
         if pos not in self._hashmap_nodes:
             node = BYAMLHashmap()
+            node.hash_size = (type & 0xF) * 4 + 4
             self._hashmap_nodes[pos] = node
 
+            element_size = node.hash_size + 4
+
             count = stream.u24()
-            with stream.jump(stream.tell() + count * 8):
+            with stream.jump(stream.tell() + count * element_size):
                 types = stream.repeat(stream.u8, count)
+            
             map = {}
             for i in range(count):
-                hash = stream.u32()
+                hash = stream.read(node.hash_size)
+                if stream.little_endian():
+                    hash = hash[::-1]
+                
                 map[hash] = self._parse_node(stream, types[i])
             
             node.value = map
         
         return self._hashmap_nodes[pos]
+
+    def _parse_ordered_hashmap(self, stream: StreamIn) -> BYAMLHashmap:
+        type = stream.u8()
+        if not BYAMLNodeType.OrderedHashmap <= type <= \
+                BYAMLNodeType.OrderedHashmapLast:
+            raise ParseError("expected an ordered hashmap node")
+
+        pos = stream.tell()
+        if pos not in self._hashmap_nodes:
+            node = BYAMLOrderedHashmap()
+            node.hash_size = (type & 0xF) * 4 + 4
+            self._hashmap_nodes[pos] = node
+
+            element_size = node.hash_size + 4
+
+            count = stream.u24()
+            with stream.jump(stream.tell() + count * element_size):
+                types = stream.repeat(stream.u8, count)
+                indices = self._parse_index_table(stream, count)
+            
+            items = []
+            for i in range(count):
+                hash = stream.read(node.hash_size)
+                if stream.little_endian():
+                    hash = hash[::-1]
+
+                items.append((hash, self._parse_node(stream, types[i])))
+
+            map = {}
+            for index in indices:
+                key, value = items[index]
+                map[key] = value
+            
+            node.value = map
+        
+        return self._hashmap_nodes[pos]
+
+    def _parse_index_table(self, stream: StreamIn, count: int) -> list[int]:
+        if count < 0x100: return stream.repeat(stream.u8, count)
+        elif count < 0x10000: return stream.repeat(stream.u16, count)
+        return stream.repeat(stream.u32, count)
     
     def _parse_string_table(self, stream: StreamIn, base: int) -> list[str]:
         if not base:
@@ -655,19 +737,62 @@ class BYAMLSaver:
     def _save_hashmap(self, stream: StreamOut, node: BYAMLHashmap) -> None:
         self._nodes[node] = stream.tell()
 
+        element_size = node.hash_size + 4
+
         stream.u8(node.type())
         stream.u24(len(node.value))
 
         stream.push()
-        stream.skip(len(node.value) * 8)
+        stream.skip(len(node.value) * element_size)
         for child in node.value.values():
             stream.u8(child.type())
         stream.align(4)
         stream.pop()
 
         for key, child in node.value.items():
-            stream.u32(key)
+            if stream.little_endian():
+                key = key[::-1]
+            
+            stream.write(key)
             self._save_node(stream, child)
+
+    def _save_ordered_hashmap(
+        self, stream: StreamOut, node: BYAMLOrderedHashmap
+    ) -> None:
+        self._nodes[node] = stream.tell()
+
+        element_size = node.hash_size + 4
+
+        keys = list(node.value)
+        sorted_keys = sorted(keys)
+
+        indices = []
+        for key in keys:
+            indices.append(sorted_keys.index(key))
+
+        stream.u8(node.type())
+        stream.u24(len(node.value))
+
+        stream.push()
+        stream.skip(len(node.value) * element_size)
+        for child in node.value.values():
+            stream.u8(child.type())
+        self._save_index_table(stream, indices)
+        stream.align(4)
+        stream.pop()
+
+        for key, child in node.value.items():
+            if stream.little_endian():
+                key = key[::-1]
+            
+            stream.write(key)
+            self._save_node(stream, child)
+
+    def _save_index_table(self, stream: StreamOut, indices: list[int]) -> None:
+        if len(indices) < 0x100: stream.repeat(indices, stream.u8)
+        elif len(indices) < 0x10000: stream.repeat(indices, stream.u16)
+        else:
+            stream.repeat(indices, stream.u32)
     
     def _save_string_table(
         self, stream: StreamOut, table: dict[str, int]
@@ -740,6 +865,22 @@ class BYAMLSaver:
                 stream.u32(stream.size())
                 with stream.jump(stream.size()):
                     self._save_dictionary(stream, node)
+
+        elif isinstance(node, BYAMLHashmap):
+            if node in self._nodes:
+                stream.u32(self._nodes[node])
+            else:
+                stream.u32(stream.size())
+                with stream.jump(stream.size()):
+                    self._save_hashmap(stream, node)
+
+        elif isinstance(node, BYAMLOrderedHashmap):
+            if node in self._nodes:
+                stream.u32(self._nodes[node])
+            else:
+                stream.u32(stream.size())
+                with stream.jump(stream.size()):
+                    self._save_ordered_hashmap(stream, node)
         
         elif isinstance(node, BYAMLBool): stream.u32(node.value)
         elif isinstance(node, BYAMLInt): stream.s32(node.value)
