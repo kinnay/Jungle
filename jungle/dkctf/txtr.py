@@ -17,13 +17,28 @@ class TextureType(enum.IntEnum):
     Texture2DArray = 5
     Texture2DMSAA = 6
     Texture2DMSAAArray = 7
+    TextureCubeArray = 8
 
 
 class TextureFormat(enum.IntEnum):
-    UNORM_R8_G8_B8_A8 = 12
+    UNORM_RGBA8 = 12
     UNORM_BC1 = 20
     UNORM_BC3 = 24
     UNORM_BC5 = 28
+    UNORM_ASTC_4x4 = 53
+    UNORM_ASTC_5x4 = 54
+    UNORM_ASTC_5x5 = 55
+    UNORM_ASTC_6x5 = 56
+    UNORM_ASTC_6x6 = 57
+    UNORM_ASTC_8x5 = 58
+    UNORM_ASTC_8x6 = 59
+    UNORM_ASTC_8x8 = 60
+    UNORM_ASTC_10x5 = 61
+    UNORM_ASTC_10x6 = 62
+    UNORM_ASTC_10x8 = 63
+    UNORM_ASTC_10x10 = 64
+    UNORM_ASTC_12x10 = 65
+    UNORM_ASTC_12x12 = 66
 
 
 class TextureFilter(enum.IntEnum):
@@ -157,11 +172,18 @@ class TXTRMetadata:
 class TXTRFile:
     header: TextureHeader = field(default_factory=TextureHeader)
     data: bytes = b""
+    reader_version: int = 14
+    writer_version: int = 14
 
     def parse(self, data: bytes) -> None:
-        form = CFormDescriptor.fromdata(data, "TXTR", 14)
+        stream = StreamIn(data, ">")
+        form = stream.extract(CFormDescriptor)
+        form.validate("TXTR", [(14, 14), (15, 16)])
 
-        stream = StreamIn(form, ">")
+        self.reader_version = form.reader_version
+        self.writer_version = form.writer_version
+
+        stream = StreamIn(form.data, ">")
         head = stream.extract(CChunkDescriptor)
         gpu = stream.extract(CChunkDescriptor)
 
@@ -185,7 +207,9 @@ class TXTRFile:
         stream.add(head)
         stream.add(gpu)
 
-        form = CFormDescriptor("TXTR", 14, stream.get())
+        form = CFormDescriptor(
+            "TXTR", self.reader_version, self.writer_version, stream.get()
+        )
 
         stream = StreamOut(">")
         stream.add(form)

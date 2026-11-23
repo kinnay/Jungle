@@ -12,9 +12,11 @@ class GENPFile:
         self.root = GPSMDescription()
 
     def parse(self, data: bytes) -> None:
-        pack = CFormDescriptor.fromdata(data, "GENP", 15)
+        stream = StreamIn(data, ">")
+        form = stream.extract(CFormDescriptor)
+        form.validate("GENP", [(15, 15)])
 
-        stream = StreamIn(pack, ">")
+        stream = StreamIn(form.data, ">")
         chunk = stream.extract(CChunkDescriptor)
         if chunk.type != "DESC" or chunk.version != 0:
             raise ParseError("unsupported chunk type")
@@ -41,7 +43,7 @@ class GENPFile:
         stream = StreamOut(">")
         stream.add(chunk)
 
-        form = CFormDescriptor("GENP", 15, stream.get())
+        form = CFormDescriptor("GENP", 15, 15, stream.get())
         stream = StreamOut(">")
         stream.add(form)
         return stream.get()

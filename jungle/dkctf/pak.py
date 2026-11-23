@@ -82,10 +82,15 @@ class PAKFile:
         self.assets = {}
         self.switch = None
 
-        pack = CFormDescriptor.fromdata(data, "PACK", 0)
-        tocc = CFormDescriptor.fromdata(pack, "TOCC", 1)
+        stream = StreamIn(data, ">")
+        pack = stream.extract(CFormDescriptor)
+        pack.validate("PACK", [(0, 0)])
 
-        stream = StreamIn(tocc, ">")
+        stream = StreamIn(pack.data, ">")
+        tocc = stream.extract(CFormDescriptor)
+        tocc.validate("TOCC", [(1, 1)])
+
+        stream = StreamIn(tocc.data, ">")
         while not stream.eof():
             chunk = stream.extract(CChunkDescriptor)
             if chunk.type == "ADIR":
@@ -120,14 +125,14 @@ class PAKFile:
             stream.add(CChunkDescriptor("META", 1, meta))
         stream.add(CChunkDescriptor("STRG", 1, strg))
 
-        tocc = CFormDescriptor("TOCC", 1, stream.get())
+        tocc = CFormDescriptor("TOCC", 1, 1, stream.get())
 
         stream = StreamOut(">")
         stream.add(tocc)
         for asset in self.assets.values():
             stream.write(asset.data)
 
-        pack = CFormDescriptor("PACK", 0, stream.get())
+        pack = CFormDescriptor("PACK", 0, 0, stream.get())
 
         stream = StreamOut(">")
         stream.add(pack)

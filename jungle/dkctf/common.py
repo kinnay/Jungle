@@ -58,7 +58,8 @@ class CAssetHeader:
 @dataclass
 class CFormDescriptor:
     type: str = "XXXX"
-    version: int = 0
+    reader_version: int = 0
+    writer_version: int = 0
     data: bytes = b""
 
     def decode(self, stream: StreamIn) -> None:
@@ -68,9 +69,8 @@ class CFormDescriptor:
         size = stream.u64()
         stream.pad(8)
         self.type = stream.ascii(4)
-        self.version = stream.u32()
-        if stream.u32() != self.version:
-            raise ParseError("inconsistent version number")
+        self.reader_version = stream.u32()
+        self.writer_version = stream.u32()
         self.data = stream.read(size)
 
     def encode(self, stream: StreamOut) -> None:
@@ -78,26 +78,16 @@ class CFormDescriptor:
         stream.u64(len(self.data))
         stream.pad(8)
         stream.ascii(self.type)
-        stream.u32(self.version)
-        stream.u32(self.version)
+        stream.u32(self.reader_version)
+        stream.u32(self.writer_version)
         stream.write(self.data)
 
-    @staticmethod
-    def fromstream(stream: StreamIn, type: str, version: int) -> bytes:
-        descriptor = CFormDescriptor()
-        descriptor.decode(stream)
-
-        if descriptor.type != type:
+    def validate(self, type: str, versions: list[tuple[int, int]]) -> None:
+        if self.type != type:
             raise ParseError("CFormDescriptor has unexpected type")
-        if descriptor.version != version:
-            raise ParseError("CFormDescriptor has unexpected version number")
 
-        return descriptor.data
-
-    @staticmethod
-    def fromdata(data: bytes, type: str, version: int) -> bytes:
-        stream = StreamIn(data, ">")
-        return CFormDescriptor.fromstream(stream, type, version)
+        if (self.reader_version, self.writer_version) not in versions:
+            raise ParseError("CFormDescriptor has unsupported version numbers")
 
 
 @dataclass
