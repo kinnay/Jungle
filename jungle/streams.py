@@ -332,7 +332,7 @@ class StreamOut:
         self._pos = 0
         self._stack = []
 
-    def little_endian(self) -> str:
+    def little_endian(self) -> bool:
         return self._endian == "<"
         
     def push(self) -> None:

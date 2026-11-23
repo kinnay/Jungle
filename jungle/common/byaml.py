@@ -211,7 +211,7 @@ class BYAMLNone(BYAMLNode):
         return BYAMLNodeType.Null
 
 
-type BYAMLRoot = BYAMLArray | BYAMLDict | BYAMLHashmap
+type BYAMLRoot = BYAMLArray | BYAMLDict | BYAMLHashmap | BYAMLOrderedHashmap
 
 
 class BYAMLWalker:
@@ -528,17 +528,17 @@ class BYAMLParser:
         
         return self._hashmap_nodes[pos]
 
-    def _parse_ordered_hashmap(self, stream: StreamIn) -> BYAMLHashmap:
+    def _parse_ordered_hashmap(self, stream: StreamIn) -> BYAMLOrderedHashmap:
         type = stream.u8()
         if not BYAMLNodeType.OrderedHashmap <= type <= \
                 BYAMLNodeType.OrderedHashmapLast:
             raise ParseError("expected an ordered hashmap node")
 
         pos = stream.tell()
-        if pos not in self._hashmap_nodes:
+        if pos not in self._ordered_hashmap_nodes:
             node = BYAMLOrderedHashmap()
             node.hash_size = (type & 0xF) * 4 + 4
-            self._hashmap_nodes[pos] = node
+            self._ordered_hashmap_nodes[pos] = node
 
             element_size = node.hash_size + 4
 
@@ -562,7 +562,7 @@ class BYAMLParser:
             
             node.value = map
         
-        return self._hashmap_nodes[pos]
+        return self._ordered_hashmap_nodes[pos]
 
     def _parse_index_table(self, stream: StreamIn, count: int) -> list[int]:
         if count < 0x100: return stream.repeat(stream.u8, count)
