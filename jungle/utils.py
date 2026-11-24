@@ -4,6 +4,10 @@ from jungle.errors import ParseError
 import enum
 
 
+
+def align_up(value: int, alignment: int) -> int:
+    return value + -value % alignment
+
 def parse_enum[T: enum.IntEnum](value: int, type: type[T]) -> T:
     if value not in type:
         raise ParseError(

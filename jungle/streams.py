@@ -12,10 +12,12 @@ Float = float
 
 
 class Serializable(typing.Protocol):
-    def decode(self, stream: StreamIn) -> None:
-        ...
-    
     def encode(self, stream: StreamOut) -> None:
+        ...
+
+
+class Parsable(typing.Protocol):
+    def decode(self, stream: StreamIn) -> None:
         ...
 
 
@@ -307,7 +309,7 @@ class StreamIn:
         """
         return struct.unpack(self._endian + "d", self.read_at(pos, 8))[0]
 
-    def extract[T: Serializable](self, type: type[T]) -> T:
+    def extract[T: Parsable](self, type: type[T]) -> T:
         instance = type()
         instance.decode(self)
         return instance
